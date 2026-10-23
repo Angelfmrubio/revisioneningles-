@@ -1,0 +1,275 @@
+l <!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Revisor Synthetics</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+         font-size:18px; line-height:1.55; background:#f2f2f7; color:#1c1c1e; }
+  header { background:#0a2540; color:#fff; padding:20px 16px; text-align:center;
+           position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:1.25rem; font-weight:700; }
+  header p { margin:6px 0 0; font-size:.9rem; opacity:.85; }
+  main { padding:16px; max-width:760px; margin:0 auto; }
+  textarea { width:100%; min-height:220px; padding:14px; font-size:18px; font-family:inherit;
+             border:2px solid #c7c7cc; border-radius:14px; background:#fff; resize:vertical; }
+  .row { display:flex; gap:10px; margin:12px 0; flex-wrap:wrap; }
+  button { flex:1; min-width:140px; min-height:60px; font-size:1.1rem; font-weight:700;
+           border:none; border-radius:14px; cursor:pointer; padding:12px 16px; }
+  button:active { transform:scale(.98); }
+  button.primary { background:#007aff; color:#fff; }
+  button.primary:disabled { background:#8e8e93; }
+  button.secondary { background:#e5e5ea; color:#1c1c1e; }
+  button.listen { background:#34c759; color:#fff; }
+  .status { padding:14px; background:#e5f1ff; border-radius:14px; font-size:1rem;
+            margin:12px 0; text-align:center; display:none; }
+  details { background:#fff; border-radius:14px; margin:12px 0; overflow:hidden;
+            box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  details summary { padding:18px 16px; font-weight:700; font-size:1.05rem; cursor:pointer;
+                    display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  details summary::after { content:"▸"; transition:transform .2s; }
+  details[open] summary::after { transform:rotate(90deg); }
+  details .body { padding:0 16px 18px; font-size:1rem; }
+  ul.plain { list-style:none; padding:0; margin:0; }
+  ul.plain li { padding:12px 0; border-bottom:1px solid #f2f2f7; }
+  ul.plain li:last-child { border-bottom:none; }
+  .metric-row { display:flex; gap:10px; margin:12px 0; flex-wrap:wrap; }
+  .metric { flex:1; min-width:100px; background:#f2f2f7; border-radius:12px;
+            padding:14px 8px; text-align:center; }
+  .metric .v { font-size:1.5rem; font-weight:700; }
+  .metric .l { font-size:.8rem; opacity:.7; }
+  .tag-warn { color:#b25000; font-weight:700; }
+  .tag-ok { color:#1d7a3a; font-weight:700; }
+  .snippet { display:block; background:#f2f2f7; padding:8px; border-radius:8px;
+             font-family:monospace; font-size:.9rem; margin-top:6px; word-break:break-word; }
+  .empty { color:#8e8e93; font-style:italic; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📖 Revisor Synthetics</h1>
+  <p>Dicta · Revisa · Escucha</p>
+</header>
+<main>
+
+  <textarea id="text" placeholder="Pega aquí un capítulo en inglés, o usa el botón de dictado."></textarea>
+
+  <div class="row">
+    <button class="secondary" id="dictBtn">🎤 Dictar</button>
+    <button class="secondary" id="clearBtn">🧹 Limpiar</button>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="checkBtn">🔍 Revisar</button>
+  </div>
+
+  <div class="row">
+    <button class="listen" id="listenBtn">🔊 Escuchar resultados</button>
+  </div>
+
+  <div id="status" class="status"></div>
+  <div id="results"></div>
+
+</main>
+
+<script>
+const TERMS = {
+  "entropy of being": ["being's entropy","entropy of the being"],
+  "chronopathy": ["chronopatía","chronopaty","chronophaty"],
+  "liquid connections": ["liquid connection","connections liquid"],
+  "zombie algorithms": ["zombies algorithms","algorithm zombies"],
+  "disruptive elite": ["elite disruptiva","disruptive elites"],
+  "negentropy": ["negative entropy","negentropia"],
+  "language of silence": ["silence language","language of the silence"],
+  "harmony of the imperfect": ["harmony of imperfect","imperfect harmony"],
+  "reactions taster": ["catador de reacciones","reaction taster"],
+  "hydration of the soul": ["soul hydration","hydratation of the soul"],
+  "wabi-sabi": ["wabisabi"],
+  "ikigai": ["ikigay","ikigaii"],
+  "half-lives": ["half lives","halflives"]
+};
+
+const CALQUES = {
+  "it is inevitable to elude":"it is impossible to avoid",
+  "to assemble with origins":"to reconnect with origins",
+  "the core issue is":"the main issue is",
+  "in order to":"to",
+  "due to the fact that":"because",
+  "it is important to note that":"(delete)",
+  "at the end of the day":"(cliché)",
+  "each time more":"increasingly",
+  "the same that":"the same as",
+  "depends of":"depends on",
+  "consists in":"consists of",
+  "in base to":"based on",
+  "with base in":"based on",
+  "it is for that":"that is why",
+  "for the contrary":"on the contrary"
+};
+
+const $ = id => document.getElementById(id);
+const splitSent = t => t.split(/(?<=[.!?])\s+/).filter(s => s.trim());
+
+function syl(w){
+  w = w.toLowerCase().replace(/[^a-z]/g,'');
+  if(!w) return 0;
+  if(w.length<=3) return 1;
+  w = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'').replace(/^y/,'');
+  const m = w.match(/[aeiouy]{1,2}/g);
+  return m ? m.length : 1;
+}
+function flesch(t){
+  const ss = splitSent(t).length || 1;
+  const ws = t.split(/\s+/).filter(w => w);
+  const n = ws.length || 1;
+  let sy = 0; for(const w of ws) sy += syl(w);
+  return 206.835 - 1.015*(n/ss) - 84.6*(sy/n);
+}
+function fkg(t){
+  const ss = splitSent(t).length || 1;
+  const ws = t.split(/\s+/).filter(w => w);
+  const n = ws.length || 1;
+  let sy = 0; for(const w of ws) sy += syl(w);
+  return 0.39*(n/ss) + 11.8*(sy/n) - 15.59;
+}
+function checkTerms(t){
+  const low = t.toLowerCase(), out = [];
+  for(const [c,w] of Object.entries(TERMS))
+    for(const v of w) if(low.includes(v.toLowerCase())) out.push({c,w:v});
+  return out;
+}
+function checkCalques(t){
+  const low = t.toLowerCase(), out = [];
+  for(const [k,v] of Object.entries(CALQUES)) if(low.includes(k)) out.push({k,v});
+  return out;
+}
+function checkLong(t, max=30){
+  return splitSent(t).map(s => ({n:s.split(/\s+/).length, s:s.trim()}))
+    .filter(o => o.n > max).sort((a,b) => b.n-a.n);
+}
+function checkRepeats(t){
+  const stop = new Set("that this with from have been they their there which while where what when will would could should about after before between into over under more most some such only also than then them".split(" "));
+  const ws = t.toLowerCase().match(/\b[a-z]{4,}\b/g) || [];
+  const c = {};
+  for(const w of ws) if(!stop.has(w)) c[w] = (c[w]||0)+1;
+  return Object.entries(c).filter(([,n]) => n>=4).sort((a,b)=>b[1]-a[1]).slice(0,15);
+}
+
+function metricRow(vs){
+  return `<div class="metric-row">${vs.map(v => `<div class="metric"><div class="v">${v.v}</div><div class="l">${v.l}</div></div>`).join("")}</div>`;
+}
+function box(title, count, html, okText){
+  const status = count===0 ? '<span class="tag-ok">✓</span>' : `<span class="tag-warn">${count}</span>`;
+  const body = count===0 ? `<p class="empty">${okText}</p>` : html;
+  return `<details><summary>${title} ${status}</summary><div class="body">${body}</div></details>`;
+}
+
+let lastSpeech = "";
+
+function review(){
+  const text = $("text").value.trim();
+  const res = $("results"), st = $("status");
+  if(!text){
+    st.style.display="block";
+    st.textContent="Escribe o dicta un texto primero.";
+    return;
+  }
+  const words = text.split(/\s+/).filter(w => w).length;
+  const sents = splitSent(text).length;
+  const fre = flesch(text), fg = fkg(text);
+  const terms = checkTerms(text);
+  const cal = checkCalques(text);
+  const long = checkLong(text);
+  const rep = checkRepeats(text);
+
+  let html = "";
+  html += `<details open><summary>📊 Métricas</summary><div class="body">
+    ${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Palabras/oración"}])}
+    ${metricRow([{v:fre.toFixed(1),l:"Flesch Reading"},{v:fg.toFixed(1),l:"Grado escolar"}])}
+  </div></details>`;
+
+  html += terms.length===0
+    ? box("🧩 Términos", 0, "", "Términos consistentes.")
+    : box("🧩 Términos", terms.length, `<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`, "");
+
+  html += cal.length===0
+    ? box("🔁 Calcos", 0, "", "Sin calcos de la lista.")
+    : box("🔁 Calcos", cal.length, `<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`, "");
+
+  html += long.length===0
+    ? box("📏 Oraciones largas", 0, "", "Todas dentro del límite (30 palabras).")
+    : box("📏 Oraciones largas", long.length, `<ul class="plain">${long.map(o=>`<li><strong>${o.n} palabras:</strong> ${o.s.slice(0,200)}${o.s.length>200?"…":""}</li>`).join("")}</ul>`, "");
+
+  html += rep.length===0
+    ? box("🔂 Repeticiones", 0, "", "Sin repeticiones llamativas.")
+    : box("🔂 Repeticiones", rep.length, `<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n} veces</li>`).join("")}</ul>`, "");
+
+  res.innerHTML = html;
+
+  let speech = `Métricas: ${words} palabras, ${sents} oraciones. `;
+  speech += `Flesch ${fre.toFixed(1)}. Grado escolar ${fg.toFixed(1)}. `;
+  speech += terms.length ? `Términos inconsistentes: ${terms.length}. ` : "Términos consistentes. ";
+  speech += cal.length ? `Calcos sospechosos: ${cal.length}. ` : "Sin calcos. ";
+  speech += long.length ? `Oraciones largas: ${long.length}. ` : "Sin oraciones largas. ";
+  speech += rep.length ? `Repeticiones: ${rep.length}. ` : "Sin repeticiones llamativas.";
+  lastSpeech = speech;
+
+  st.style.display="block";
+  st.textContent="Revisión completada.";
+}
+
+function speak(){
+  if(!lastSpeech){
+    alert("Primero pulsa Revisar.");
+    return;
+  }
+  if(!("speechSynthesis" in window)){
+    alert("Tu navegador no soporta lectura en voz alta.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(lastSpeech);
+  u.lang = "es-ES";
+  u.rate = 0.95;
+  window.speechSynthesis.speak(u);
+}
+
+let recognizing = false;
+function dictar(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    alert("Tu navegador no soporta dictado por voz. Puedes pegar el texto manualmente.");
+    return;
+  }
+  const rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.continuous = false;
+  rec.onresult = e => {
+    const t = e.results[0][0].transcript;
+    $("text").value += ( $("text").value ? " " : "" ) + t;
+    $("status").style.display="block";
+    $("status").textContent="Texto dictado añadido.";
+  };
+  rec.onerror = e => {
+    $("status").style.display="block";
+    $("status").textContent="Error de dictado: " + e.error;
+  };
+  rec.onend = () => { recognizing = false; };
+  recognizing = true;
+  rec.start();
+}
+
+$("checkBtn").addEventListener("click", review);
+$("listenBtn").addEventListener("click", speak);
+$("dictBtn").addEventListener("click", dictar);
+$("clearBtn").addEventListener("click", () => {
+  $("text").value = "";
+  $("results").innerHTML = "";
+  $("status").style.display = "none";
+});
+</script>
+</body>
+  </html>
