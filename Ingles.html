@@ -2,89 +2,121 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SINTÉTICOS - Lector Word</title>
-<!-- Solo la librería para leer Word -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>SINTÉTICOS - Traductor KDP</title>
+<!-- Solo librería para Word -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
-body { background: #121212; color: #fff; font-family: sans-serif; padding: 20px; text-align: center; }
-h1 { color: #ffd700; font-size: 1.5rem; }
-/* ESTE ES EL BOTÓN NATIVO REAL, EL QUE ABRE LOS ARCHIVOS EN EL TELÉFONO */
-input[type="file"] {
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:18px;background:#121212;color:#e0e0e0;padding:16px}
+h1{color:#ffd700;text-align:center;font-size:1.3rem}
+label{display:block;margin:15px 0 5px;color:#ffd700;font-weight:bold}
+textarea{width:100%;min-height:180px;padding:14px;font-size:16px;border-radius:12px;background:#1e1e1e;color:#fff;border:2px solid #333;margin-bottom:12px;line-height:1.5}
+button{width:100%;padding:18px;font-size:1.1rem;font-weight:bold;color:#000;background:#ffd700;border:none;border-radius:12px;cursor:pointer;margin-bottom:12px}
+button:active{transform:scale(0.98)}
+button.translate{background:#2a5bd7;color:#fff}
+.status{text-align:center;color:#ffd700;margin-bottom:15px;font-weight:bold}
+/* ESTO HACE QUE EL BOTÓN DE SUBIR FUNCIONE SI O SÍ */
+.btn-subir {
     display: block;
     width: 100%;
-    padding: 30px;
+    padding: 20px;
     background: #6a1b9a;
-    color: white;
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: 3px dashed #ffd700;
+    color: #fff;
     border-radius: 12px;
-    margin: 20px 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    border: 2px dashed #ffd700;
+    text-align: center;
     cursor: pointer;
 }
-textarea {
-    width: 100%;
-    height: 300px;
-    padding: 10px;
-    background: #1e1e1e;
-    color: #fff;
-    border: 2px solid #333;
-    border-radius: 8px;
-    font-size: 16px;
-    margin-bottom: 20px;
-}
-.status { font-weight: bold; color: #ffd700; margin: 10px 0; font-size: 1.1rem; }
 </style>
 </head>
 <body>
 
-<h1>📖 Lector de Word</h1>
+<h1>📖 SINTÉTICOS - Word a Inglés</h1>
 
-<!-- Al tocar este botón, se abre el explorador de archivos del teléfono -->
-<input type="file" id="fileInput" accept=".docx" onchange="leerWord()">
+<!-- EL TRUCO DEFINITIVO: Label que envuelve al Input -->
+<label class="btn-subir">
+    📁 SUBIR ARCHIVO WORD (.docx)
+    <input type="file" id="fileInput" accept=".docx" style="display:none;">
+</label>
 
-<div class="status" id="status">Esperando tu archivo Word...</div>
+<div class="status" id="status">Esperando tu Word...</div>
 
-<textarea id="texto" placeholder="El texto de tu libro aparecerá aquí..."></textarea>
+<label>🇪🇸 Texto en Español</label>
+<textarea id="textEs" placeholder="El texto del Word aparecerá aquí..."></textarea>
+
+<button class="translate" onclick="traducir()">🔄 Traducir al Inglés</button>
+
+<label>🇺🇸 Texto en Inglés (Para Amazon)</label>
+<textarea id="textEn" placeholder="La traducción aparecerá aquí..."></textarea>
 
 <script>
-function leerWord() {
-    const file = document.getElementById('fileInput').files[0];
-    const status = document.getElementById('status');
-    const texto = document.getElementById('texto');
+const $ = id => document.getElementById(id);
 
-    if (!file) {
-        status.innerText = "No seleccionaste ningún archivo.";
+// LEER EL ARCHIVO WORD
+$("fileInput").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    
+    $("status").textContent = "Leyendo Word... espera.";
+    
+    try {
+        const arrayBuffer = await f.arrayBuffer();
+        const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+        $("textEs").value = result.value;
+        $("status").textContent = "✅ Word cargado. Ahora dale a Traducir.";
+    } catch (error) {
+        $("status").textContent = "❌ Error al leer el archivo.";
+    }
+});
+
+// TRADUCIR CON LA API
+async function traducir() {
+    const es = $("textEs").value.trim();
+    if (!es) {
+        $("status").textContent = "Primero sube tu archivo.";
         return;
     }
 
-    status.innerText = "Leyendo archivo... por favor espera.";
+    $("status").textContent = "Traduciendo... no cierres la pantalla.";
+    const enField = $("textEn");
+    enField.value = ""; 
 
-    // El teléfono lee el archivo
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-        const arrayBuffer = e.target.result;
+    try {
+        const paras = es.split(/\n+/);
+        let out = "";
         
-        // Mammoth extrae el texto
-        mammoth.extractRawText({arrayBuffer: arrayBuffer})
-            .then(function(result) {
-                texto.value = result.value;
-                status.innerText = "✅ ¡Libro cargado con éxito!";
-            })
-            .catch(function(err) {
-                status.innerText = "❌ Error al leer el archivo. Asegúrate de que sea .docx";
-                console.error(err);
-            });
-    };
-    
-    reader.onerror = function() {
-        status.innerText = "❌ Error al abrir el archivo en el teléfono.";
-    };
-
-    // Iniciar lectura
-    reader.readAsArrayBuffer(file);
+        for (let i = 0; i < paras.length; i++) {
+            let p = paras[i].trim();
+            if (!p) continue;
+            
+            $("status").textContent = `Traduciendo ${i+1} de ${paras.length}...`;
+            
+            // Cortar en trozos seguros
+            let chunk = p.slice(0, 450);
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
+            
+            const r = await fetch(url);
+            const j = await r.json();
+            
+            if (j.responseData && j.responseData.translatedText) {
+                out += j.responseData.translatedText + "\n\n";
+            } else {
+                out += p + "\n\n"; 
+            }
+            
+            await new Promise(r => setTimeout(r, 300));
+        }
+        
+        enField.value = out;
+        $("status").textContent = "✅ Traducción lista.";
+        
+    } catch (e) {
+        $("status").textContent = "❌ Error de internet.";
+    }
 }
 </script>
 
