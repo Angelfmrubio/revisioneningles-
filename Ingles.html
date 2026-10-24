@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>SINTÉTICOS - Revisor Maquetado KDP</title>
+<title>SINTÉTICOS - Revisor KDP Capítulos</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -18,19 +18,19 @@ label{display:block;margin:14px 0 6px;font-weight:700;color:#ffd700;font-size:.9
 textarea{width:100%;min-height:160px;padding:14px;font-size:17px;font-family:inherit;border:2px solid #333;border-radius:14px;background:#1e1e1e;color:#fff;resize:vertical}
 .row{display:flex;gap:10px;margin:12px 0;flex-wrap:wrap}
 button{flex:1;min-width:130px;min-height:56px;font-size:1rem;font-weight:700;border:none;border-radius:14px;cursor:pointer;padding:12px 14px}
-button:active{transform:scale(.98)}
 button.primary{background:#ffd700;color:#000}
 button.secondary{background:#333;color:#fff}
 button.listen{background:#1d7a3a;color:#fff}
 button.translate{background:#2a5bd7;color:#fff}
 button.export{background:#d97706;color:#fff}
-button.book{background:#7c3aed;color:#fff;min-height:68px;font-size:1.15rem}
+button.book{background:#7c3aed;color:#fff;min-height:68px;font-size:1.1rem}
 .status{padding:14px;background:#1e3a5f;border-radius:14px;font-size:.95rem;margin:12px 0;text-align:center;display:none;color:#fff}
 .status.ok{background:#1d7a3a}
+select{width:100%;padding:14px;font-size:1rem;border-radius:12px;background:#2a2a2a;color:#ffd700;border:2px solid #ffd700;margin-bottom:10px;display:none;}
 .progress{height:12px;background:#333;border-radius:6px;margin:8px 0;overflow:hidden;display:none}
 .progress-bar{height:100%;background:#ffd700;width:0%;transition:width .3s}
 .book-preview{border:2px dashed #ffd700;border-radius:14px;padding:16px;margin:12px 0;background:#1a1a1a;display:none}
-.book-preview h2{color:#ffd700;margin:0 0 8px;font-size:1.1rem}
+.chip{display:inline-block;background:#2a2a2a;border:1px solid #ffd700;color:#ffd700;border-radius:20px;padding:4px 10px;font-size:.8rem;margin:2px}
 details{background:#1e1e1e;border-radius:14px;margin:12px 0;overflow:hidden;border:1px solid #333}
 details summary{padding:16px;font-weight:700;font-size:1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#ffd700}
 details summary::after{content:"▸";transition:transform .2s}
@@ -45,66 +45,47 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 .tag-warn{color:#ff6b6b;font-weight:700}
 .tag-ok{color:#51cf66;font-weight:700}
 .empty{color:#888;font-style:italic}
-.chip{display:inline-block;background:#2a2a2a;border:1px solid #ffd700;color:#ffd700;border-radius:20px;padding:4px 10px;font-size:.8rem;margin:2px}
 </style>
 </head>
 <body>
 <header>
 <h1>📖 SINTÉTICOS - Revisor KDP</h1>
-<p>Recibe PDF completo · Extrae por partes · Entrega libro para Amazon</p>
+<p>Recibe PDF completo · Divide en capítulos · Entrega libro Amazon</p>
 </header>
 <main>
+<select id="chapterSelect" onchange="loadChapter()"><option value="">-- Selecciona un capítulo --</option></select>
 <label>📝 Español (original)</label>
-<textarea id="textEs" placeholder="Pegue capítulo en español..."></textarea>
+<textarea id="textEs" placeholder="Pegue capítulo o suba libro..."></textarea>
 <div class="row">
 <button class="secondary" id="dictEsBtn">🎤 Dictar ES</button>
 <button class="translate" id="transBtn">🔄 Traducir ES → EN</button>
 </div>
 <div class="row">
-<button class="secondary" id="uploadBtn" style="background:#6a1b9a;color:#fff;font-size:1.1rem;min-height:65px;">📁 SUBIR LIBRO COMPLETO (PDF, WORD, EPUB)</button>
+<button class="secondary" id="uploadBtn" style="background:#6a1b9a;color:#fff;font-size:1.1rem;min-height:65px;">📁 SUBIR LIBRO COMPLETO</button>
 <input type="file" id="fileInput" accept=".txt,.md,.html,.epub,.pdf,.docx" style="display:none;">
 </div>
 <div id="pdfControls" style="display:none;">
-<label>📄 Control de páginas del PDF</label>
-<div class="row">
-<button class="secondary" id="btn20">➡️ Siguientes 20 págs</button>
-<button class="secondary" id="btnAll">📚 Acumular TODO</button>
-</div>
+<div class="row"><button class="secondary" id="btn20">➡️ Siguientes 20 págs</button><button class="secondary" id="btnAll">📚 Acumular TODO</button></div>
 <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
 <div id="acumuladoInfo" style="font-size:.9rem;color:#ffd700;margin:6px 0;"></div>
 </div>
 <label>🇺🇸 Inglés (acumulado para maquetar)</label>
-<textarea id="text" placeholder="Aquí se va acumulando el libro completo en inglés..."></textarea>
+<textarea id="text" placeholder="Aquí se va acumulando el libro completo..."></textarea>
 <div class="row">
 <button class="secondary" id="dictEnBtn">🎤 Dictar EN</button>
 <button class="primary" id="checkBtn">🔍 Revisar Capítulo EN</button>
 </div>
-<div class="row">
-<button class="book" id="maquetarBtn">📘 MAQUETAR LIBRO FINAL PARA AMAZON KDP</button>
-</div>
-<div id="bookPreview" class="book-preview">
-<h2>📘 Libro maquetado listo</h2>
-<div id="previewContent"></div>
-<div class="row">
-<button class="export" id="exportHtmlBtn">📥 Descargar HTML Maquetado (eBook Kindle)</button>
-<button class="export" id="exportPdfBtn" style="background:#1d7a3a">📥 Descargar PDF Maquetado 6x9 (Tapa blanda)</button>
-</div>
-</div>
-<div class="row">
-<button class="listen" id="listenBtn">🔊 Escuchar Diagnóstico</button>
-<button class="export" id="exportBtn">📥 Exportar Reporte TXT</button>
-</div>
-<div class="row">
-<button class="secondary" id="clearBtn" style="flex:1;">🧹 Limpiar Todo</button>
-</div>
-<div id="status" class="status"></div>
-<div id="results"></div>
+<div class="row"><button class="book" id="maquetarBtn">📘 MAQUETAR LIBRO FINAL PARA AMAZON KDP 6x9</button></div>
+<div id="bookPreview" class="book-preview"><h2>📘 Libro maquetado listo</h2><div id="previewContent"></div><div class="row"><button class="export" id="exportHtmlBtn">📥 Descargar HTML eBook Kindle</button><button class="export" id="exportPdfBtn" style="background:#1d7a3a">📥 Descargar PDF 6x9 Tapa blanda</button></div></div>
+<div class="row"><button class="listen" id="listenBtn">🔊 Escuchar Diagnóstico</button><button class="export" id="exportBtn">📥 Exportar Reporte</button></div>
+<div class="row"><button class="secondary" id="clearBtn" style="flex:1;">🧹 Limpiar Todo</button></div>
+<div id="status" class="status"></div><div id="results"></div>
 </main>
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const $=id=>document.getElementById(id);
-let pdfDoc=null; let currentPage=0; let totalPages=0; let libroAcumulado="";
-const splitSent=t=>{return t.split(/[.!?]+\s+/).filter(s=>s.trim())};
+let pdfDoc=null,currentPage=0,totalPages=0,libroAcumulado="",bookChapters=[];
+const splitSent=t=>t.split(/[.!?]+\s+/).filter(s=>s.trim());
 function esc(h){return h.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 function syl(w){w=w.toLowerCase().replace(/[^a-z]/g,'');if(!w)return 0;if(w.length<=3)return 1;w=w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'').replace(/^y/,'');const m=w.match(/[aeiouy]{1,2}/g);return m?m.length:1}
 function flesch(t){const ss=splitSent(t).length||1;const ws=t.split(/\s+/).filter(w=>w);const n=ws.length||1;let sy=0;for(const w of ws)sy+=syl(w);return 206.835-1.015*(n/ss)-84.6*(sy/n)}
@@ -117,154 +98,21 @@ function checkLong(t,max=28){return splitSent(t).map(s=>({n:s.split(/\s+/).lengt
 function checkRepeats(t){const stop=new Set("that this with from have been they their there which while where what when will would could should about after before between into over under more most some such only also than then them".split(" "));const ws=t.toLowerCase().match(/\b[a-z]{4,}\b/g)||[];const c={};for(const w of ws)if(!stop.has(w))c[w]=(c[w]||0)+1;return Object.entries(c).filter(([,n])=>n>=4).sort((a,b)=>b[1]-a[1]).slice(0,15)}
 function metricRow(vs){return `<div class="metric-row">${vs.map(v=>`<div class="metric"><div class="v">${v.v}</div><div class="l">${v.l}</div></div>`).join("")}</div>`}
 function box(title,count,html,okText){const status=count===0?'<span class="tag-ok">✓</span>':`<span class="tag-warn">${count}</span>`;const body=count===0?`<p class="empty">${okText}</p>`:html;return `<details><summary>${title} ${status}</summary><div class="body">${body}</div></details>`}
-let lastSpeech=""; let exportText="";
-function review(){
- const text=$("text").value.trim(); const res=$("results"),st=$("status");
- if(!text){st.style.display="block";st.textContent="No hay texto en inglés.";return}
- const words=text.split(/\s+/).filter(w=>w).length; const sents=splitSent(text).length; const fre=flesch(text),fg=fkg(text);
- const terms=checkTerms(text); const cal=checkCalques(text); const long=checkLong(text); const rep=checkRepeats(text);
- let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;
- html+=terms.length===0?box("🧩 Términos",0,"","OK"):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${esc(t.c)}</strong> no <em>${esc(t.w)}</em></li>`).join("")}</ul>`,"");
- html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos"):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${esc(c.k)}» → <strong>${esc(c.v)}</strong></li>`).join("")}</ul>`,"");
- html+=long.length===0?box("📏 Largas",0,"","<28"):box("📏 Largas",long.length,`<ul class="plain">${long.slice(0,8).map(o=>`<li><strong>${o.n} pal:</strong> ${esc(o.s.slice(0,200))}</li>`).join("")}</ul>`,"");
- html+=rep.length===0?box("🔂 Repeticiones",0,"","OK"):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${esc(w)}</strong>: ${n}</li>`).join("")}</ul>`,"");
- res.innerHTML=html;
- lastSpeech=`${words} palabras, Flesch ${fre.toFixed(1)}, Grado ${fg.toFixed(1)}`;
- exportText=`REPORTE SINTÉTICOS\nPalabras:${words} Oraciones:${sents} Flesch:${fre.toFixed(1)}\n`;
- st.style.display="block"; st.textContent="Revisión lista.";
-}
-function speak(){if(!lastSpeech){alert("Primero Revisar");return} const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";speechSynthesis.speak(u)}
-function exportReport(){if(!exportText){alert("Revisar primero");return} const blob=new Blob([exportText],{type:"text/plain"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="Reporte_Sinteticos.txt"; a.click();}
-async function traducir(){
- const es=$("textEs").value.trim(); const st=$("status"); const en=$("text");
- if(!es){st.style.display="block";st.textContent="Escriba español";return}
- st.style.display="block"; st.textContent="Traduciendo...";
- try{
-  const paras=es.split(/\n+/); let out="";
-  for(let i=0;i<paras.length;i++){
-   let p=paras[i].trim(); if(!p) continue;
-   st.textContent=`Traduciendo párrafo ${i+1}/${paras.length}`;
-   let chunk=p.slice(0,450);
-   const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
-   const r=await fetch(url); const j=await r.json();
-   out+=(j.responseData?.translatedText||chunk)+"\n\n";
-   await new Promise(r=>setTimeout(r,400));
-  }
-  en.value=out; libroAcumulado=out;
-  st.textContent="Traducción lista.";
- }catch(e){st.textContent="Error traducción";}
-}
-function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){alert("No soportado");return} const rec=new SR(); rec.lang=lang; rec.continuous=false; rec.onresult=e=>{const t=e.results[0][0].transcript; $(target).value+=($(target).value?" ":"")+t;}; rec.start();}}
-async function cargarPDFCompleto(file){
- const st=$("status"); const prog=$("progress");
- st.style.display="block"; prog.style.display="block";
- try{
-  const buf=await file.arrayBuffer();
-  pdfDoc=await pdfjsLib.getDocument(buf).promise;
-  totalPages=pdfDoc.numPages; currentPage=0;
-  $("pdfControls").style.display="block";
-  st.textContent=`PDF cargado: ${file.name} - ${totalPages} páginas. Pulse 'Siguientes 20'`;
-  $("acumuladoInfo").innerHTML=`<span class="chip">0 / ${totalPages} páginas</span>`;
-  prog.style.display="none";
- }catch(e){st.textContent="Error PDF: "+e.message;}
-}
-async function extraerSiguientes(n=20){
- if(!pdfDoc){alert("Suba PDF primero");return}
- const st=$("status"); const prog=$("progress"); const bar=$("progressBar");
- prog.style.display="block";
- let fin=Math.min(currentPage+n, totalPages);
- let texto="";
- for(let i=currentPage+1;i<=fin;i++){
-  st.textContent=`Extrayendo página ${i} de ${totalPages}...`;
-  bar.style.width=`${Math.round((i/totalPages)*100)}%`;
-  const page=await pdfDoc.getPage(i);
-  const tc=await page.getTextContent();
-  const pageText=tc.items.map(it=>it.str).join(" ");
-  texto+=pageText+"\n\n";
- }
- currentPage=fin;
- libroAcumulado+=texto;
- $("text").value=libroAcumulado;
- $("acumuladoInfo").innerHTML=`<span class="chip">${currentPage} / ${totalPages} páginas</span> <span class="chip">${libroAcumulado.split(/\s+/).length} palabras</span>`;
- st.textContent=`Acumuladas ${currentPage} páginas. ${totalPages-currentPage} restantes.`;
- st.className="status ok"; st.style.display="block";
- if(currentPage>=totalPages){ st.textContent=`¡Libro completo acumulado! ${totalPages} páginas. Ya puede Maquetar.`; prog.style.display="none"; }
-}
-function maquetarLibro(){
- const texto=$("text").value.trim();
- if(!texto||texto.split(/\s+/).length<50){alert("Necesita acumular más texto");return}
- const st=$("status");
- let capitulos=texto.split(/(?=\b(CAP[ÍI]TULO|CHAPTER|Capítulo)\b)/i);
- if(capitulos.length===1){
-   const palabras=texto.split(/\s+/);
-   capitulos=[]; for(let i=0;i<palabras.length;i+=1800){ capitulos.push(palabras.slice(i,i+1800).join(" ")); }
- }
- let htmlMaquetado=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SINTÉTICOS</title>
-<style>
-@page{size: 6in 9in; margin-top:0.8in; margin-bottom:0.8in; margin-left:0.9in; margin-right:0.6in;}
-body{font-family:'Georgia', serif; font-size:11pt; line-height:1.5; color:#111; max-width:700px; margin:0 auto; padding:40px 20px; text-align:justify}
-.portada{text-align:center; padding:80px 20px 40px; page-break-after:always}
-.portada h1{font-size:3rem; letter-spacing:.2em; margin:0; font-weight:900}
-.portada h2{font-size:1.1rem; color:#555; margin-top:20px; font-weight:400}
-.portada .autor{margin-top:60px; font-size:1rem; letter-spacing:.3em}
-.capitulo{page-break-before:always; margin-top:40px}
-.capitulo h2{font-size:1.6rem; text-transform:uppercase; letter-spacing:.12em; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:25px; text-align:left}
-.capitulo p{margin:0 0 1em; text-indent:1.5em; text-align:justify; hyphens:auto}
-.capitulo p:first-of-type{text-indent:0}
-.capitulo p:first-of-type::first-letter{font-size:3.1rem; float:left; line-height:.8; margin:5px 8px 0 0; font-weight:700}
-.indice{page-break-after:always}
-.indice h2{font-size:1.4rem; border-bottom:1px solid #ccc; padding-bottom:8px; text-align:left}
-.indice ul{list-style:none; padding:0}
-.indice li{padding:7px 0; border-bottom:1px dotted #ccc; display:flex; justify-content:space-between}
-</style></head><body>
-<div class="portada">
-<h1>SINTÉTICOS</h1>
-<h2>ENTROPÍA, CONCIENCIA Y LA ARMONÍA DE LO IMPERFECTO</h2>
-<div class="autor">ÁNGEL F. M. RUBIO</div>
-<p style="margin-top:80px; font-size:.85rem; color:#888">Edición maquetada KDP 6x9 - Revisor SINTÉTICOS</p>
-</div>
-<div class="indice"><h2>ÍNDICE</h2><ul>`;
- capitulos.forEach((c,i)=>{
-   let titulo=`Capítulo ${i+1}`;
-   const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);
-   if(m) titulo=m[0].slice(0,80);
-   htmlMaquetado+=`<li><span>${esc(titulo)}</span><span>${i+1}</span></li>`;
- });
- htmlMaquetado+=`</ul></div>`;
- capitulos.forEach((c,i)=>{
-   let titulo=`Capítulo ${i+1}`;
-   let cuerpo=c;
-   const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);
-   if(m){ titulo=m[0]; cuerpo=c.slice(m[0].length); }
-   const paras=cuerpo.split(/\n\n+/).map(p=>`<p>${esc(p.trim())}</p>`).join("\n");
-   htmlMaquetado+=`<div class="capitulo"><h2>${esc(titulo)}</h2>${paras}</div>`;
- });
- htmlMaquetado+=`<div style="text-align:center; margin-top:80px; page-break-before:always; color:#888; font-size:.9rem">Fin - SINTÉTICOS</div></body></html>`;
- window.libroMaquetadoHTML=htmlMaquetado;
- $("bookPreview").style.display="block";
- $("previewContent").innerHTML=`<p><span class="chip">${capitulos.length} capítulos</span> <span class="chip">${texto.split(/\s+/).length} palabras</span></p><p style="font-size:.85rem; color:#aaa">${esc(texto.slice(0,300))}...</p>`;
- st.textContent=`¡Libro maquetado KDP! ${capitulos.length} capítulos, ${texto.split(/\s+/).length} palabras. Descargue.`;
- st.className="status ok"; st.style.display="block";
- window.scrollTo(0, document.body.scrollHeight);
-}
-function descargarHTMLMaquetado(){
- if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}
- const blob=new Blob([window.libroMaquetadoHTML],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="SINTETICOS-KDP-eBook.html"; a.click();
-}
-function descargarPDFMaquetado(){
- if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}
- const w=window.open("","_blank"); w.document.write(window.libroMaquetadoHTML); w.document.close(); setTimeout(()=>{w.print();},800);
-}
+let lastSpeech="",exportText="";
+function loadChapter(){const i=$("chapterSelect").value;if(i==="")return;const txt=bookChapters[i];if(/[áéíóúñ]/i.test(txt.slice(0,500))){$("textEs").value=txt;$("text").value="";}else{$("text").value=txt;$("textEs").value="";}$("status").style.display="block";$("status").textContent="Capítulo "+(parseInt(i)+1)+" cargado.";}
+function review(){const text=$("text").value.trim();const res=$("results"),st=$("status");if(!text){st.style.display="block";st.textContent="Pegue texto en inglés.";return}const words=text.split(/\s+/).filter(w=>w).length;const sents=splitSent(text).length;const fre=flesch(text),fg=fkg(text);const terms=checkTerms(text);const cal=checkCalques(text);const long=checkLong(text);const rep=checkRepeats(text);let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;html+=terms.length===0?box("🧩 Términos",0,"","OK"):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${esc(t.c)}</strong> no <em>${esc(t.w)}</em></li>`).join("")}</ul>`,"");html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos"):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${esc(c.k)}» → <strong>${esc(c.v)}</strong></li>`).join("")}</ul>`,"");html+=long.length===0?box("📏 Largas",0,"","<28"):box("📏 Largas",long.length,`<ul class="plain">${long.slice(0,8).map(o=>`<li><strong>${o.n} pal:</strong> ${esc(o.s.slice(0,200))}</li>`).join("")}</ul>`,"");html+=rep.length===0?box("🔂 Repeticiones",0,"","OK"):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${esc(w)}</strong>: ${n}</li>`).join("")}</ul>`,"");res.innerHTML=html;lastSpeech=`${words} palabras, Flesch ${fre.toFixed(1)}`;exportText=`REPORTE\nPalabras:${words} Flesch:${fre.toFixed(1)}\n`;st.style.display="block";st.textContent="Revisión lista.";}
+function speak(){if(!lastSpeech){alert("Primero Revisar");return}const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";speechSynthesis.speak(u)}
+function exportReport(){if(!exportText){alert("Revisar primero");return}const blob=new Blob([exportText],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Reporte.txt";a.click();}
+async function traducir(){const es=$("textEs").value.trim();const st=$("status");const en=$("text");if(!es){st.style.display="block";st.textContent="Escriba español";return}st.style.display="block";st.textContent="Traduciendo...";try{const paras=es.split(/\n+/);let out="";for(let i=0;i<paras.length;i++){let p=paras[i].trim();if(!p)continue;st.textContent=`Traduciendo ${i+1}/${paras.length}`;const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(p.slice(0,450))}&langpair=es|en`;const r=await fetch(url);const j=await r.json();out+=(j.responseData?.translatedText||p.slice(0,450))+"\n\n";await new Promise(r=>setTimeout(r,400));}en.value=out;libroAcumulado=out;st.textContent="Traducción lista.";}catch(e){st.textContent="Error traducción";}}
+function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("No soportado");return}const rec=new SR();rec.lang=lang;rec.continuous=false;rec.onresult=e=>{const t=e.results[0][0].transcript;$(target).value+=($(target).value?" ":"")+t;};rec.start();}}
+async function cargarPDFCompleto(file){const st=$("status");const prog=$("progress");st.style.display="block";prog.style.display="block";try{const buf=await file.arrayBuffer();pdfDoc=await pdfjsLib.getDocument(buf).promise;totalPages=pdfDoc.numPages;currentPage=0;$("pdfControls").style.display="block";st.textContent=`PDF ${file.name} - ${totalPages} páginas. Pulse Siguientes 20.`;$("acumuladoInfo").innerHTML=`<span class="chip">0 / ${totalPages}</span>`;prog.style.display="none";}catch(e){st.textContent="Error PDF: "+e.message;}}
+async function extraerSiguientes(n=20){if(!pdfDoc){alert("Suba PDF primero");return}const st=$("status");const prog=$("progress");const bar=$("progressBar");prog.style.display="block";let fin=Math.min(currentPage+n,totalPages);let texto="";for(let i=currentPage+1;i<=fin;i++){st.textContent=`Extrayendo página ${i} de ${totalPages}...`;bar.style.width=`${Math.round((i/totalPages)*100)}%`;const page=await pdfDoc.getPage(i);const tc=await page.getTextContent();texto+=tc.items.map(it=>it.str).join(" ")+"\n\n";}currentPage=fin;libroAcumulado+=texto;$("text").value=libroAcumulado;dividirEnCapitulos(libroAcumulado);$("acumuladoInfo").innerHTML=`<span class="chip">${currentPage} / ${totalPages} páginas</span> <span class="chip">${libroAcumulado.split(/\s+/).length} palabras</span>`;st.textContent=`Acumuladas ${currentPage} páginas. ${totalPages-currentPage} restantes.`;st.className="status ok";st.style.display="block";if(currentPage>=totalPages){st.textContent=`¡Libro completo acumulado! ${totalPages} páginas.`;prog.style.display="none";}}
+function dividirEnCapitulos(fullText){let parts=fullText.split(/(?=Capítulo\s+\d+|CAPÍTULO\s+\d+|Chapter\s+\d+|CHAPTER\s+\d+)/i);parts=parts.map(p=>p.trim()).filter(p=>p.length>100);if(parts.length<=1){const words=fullText.split(/\s+/);const chunkSize=2000;parts=[];for(let i=0;i<words.length;i+=chunkSize){parts.push(words.slice(i,i+chunkSize).join(" "));}}bookChapters=parts;const sel=$("chapterSelect");sel.innerHTML='<option value="">-- Selecciona un capítulo --</option>';bookChapters.forEach((t,i)=>{const o=document.createElement("option");o.value=i;o.textContent=`Capítulo ${i+1} (${t.split(/\s+/).length} pal)`;sel.appendChild(o);});sel.style.display="block";}
+function maquetarLibro(){const texto=$("text").value.trim()||libroAcumulado.trim();if(!texto||texto.split(/\s+/).length<50){alert("Necesita acumular más texto");return}const st=$("status");let capitulos=texto.split(/(?=\b(CAP[ÍI]TULO|CHAPTER|Capítulo)\b)/i);if(capitulos.length===1){const palabras=texto.split(/\s+/);capitulos=[];for(let i=0;i<palabras.length;i+=1800){capitulos.push(palabras.slice(i,i+1800).join(" "));}}let htmlM=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SINTÉTICOS</title><style>@page{size:6in 9in;margin-top:0.8in;margin-bottom:0.8in;margin-left:0.9in;margin-right:0.6in}body{font-family:'Georgia',serif;font-size:11pt;line-height:1.5;color:#111;max-width:700px;margin:0 auto;padding:40px 20px;text-align:justify}.portada{text-align:center;padding:80px 20px 40px;page-break-after:always}.portada h1{font-size:3rem;letter-spacing:.2em;margin:0;font-weight:900}.portada h2{font-size:1.1rem;color:#555;margin-top:20px}.portada .autor{margin-top:60px;letter-spacing:.3em}.capitulo{page-break-before:always;margin-top:40px}.capitulo h2{font-size:1.6rem;text-transform:uppercase;letter-spacing:.12em;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:25px;text-align:left}.capitulo p{margin:0 0 1em;text-indent:1.5em;text-align:justify}.capitulo p:first-of-type{text-indent:0}.capitulo p:first-of-type::first-letter{font-size:3.1rem;float:left;line-height:.8;margin:5px 8px 0 0;font-weight:700}.indice{page-break-after:always}.indice h2{font-size:1.4rem;border-bottom:1px solid #ccc;padding-bottom:8px;text-align:left}.indice ul{list-style:none;padding:0}.indice li{padding:7px 0;border-bottom:1px dotted #ccc;display:flex;justify-content:space-between}</style></head><body><div class="portada"><h1>SINTÉTICOS</h1><h2>ENTROPÍA, CONCIENCIA Y LA ARMONÍA DE LO IMPERFECTO</h2><div class="autor">ÁNGEL F. M. RUBIO</div><p style="margin-top:80px;font-size:.85rem;color:#888">Edición maquetada KDP 6x9</p></div><div class="indice"><h2>ÍNDICE</h2><ul>`;capitulos.forEach((c,i)=>{let titulo=`Capítulo ${i+1}`;const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);if(m)titulo=m[0].slice(0,80);htmlM+=`<li><span>${esc(titulo)}</span><span>${i+1}</span></li>`;});htmlM+=`</ul></div>`;capitulos.forEach((c,i)=>{let titulo=`Capítulo ${i+1}`;let cuerpo=c;const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);if(m){titulo=m[0];cuerpo=c.slice(m[0].length);}const paras=cuerpo.split(/\n\n+/).map(p=>`<p>${esc(p.trim())}</p>`).join("\n");htmlM+=`<div class="capitulo"><h2>${esc(titulo)}</h2>${paras}</div>`;});htmlM+=`<div style="text-align:center;margin-top:80px;page-break-before:always;color:#888;font-size:.9rem">Fin - SINTÉTICOS</div></body></html>`;window.libroMaquetadoHTML=htmlM;$("bookPreview").style.display="block";$("previewContent").innerHTML=`<p><span class="chip">${capitulos.length} capítulos</span> <span class="chip">${texto.split(/\s+/).length} palabras</span></p>`;st.textContent=`¡Libro maquetado KDP! ${capitulos.length} capítulos.`;st.className="status ok";st.style.display="block";window.scrollTo(0,document.body.scrollHeight);}
+function descargarHTMLMaquetado(){if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}const blob=new Blob([window.libroMaquetadoHTML],{type:"text/html"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="SINTETICOS-KDP-eBook.html";a.click();}
+function descargarPDFMaquetado(){if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}const w=window.open("","_blank");w.document.write(window.libroMaquetadoHTML);w.document.close();setTimeout(()=>{w.print();},800);}
 $("uploadBtn").addEventListener("click",()=>$("fileInput").click());
-$("fileInput").addEventListener("change", async e=>{
- const f=e.target.files[0]; if(!f) return;
- const ext=f.name.split(".").pop().toLowerCase();
- if(ext==="pdf"){ await cargarPDFCompleto(f); }
- else if(ext==="epub"){ 
-   const zip=await JSZip.loadAsync(f); let txt=""; const files=[]; zip.forEach((p,ent)=>{if(p.match(/\.x?html?$/)) files.push({p,ent})}); files.sort((a,b)=>a.p.localeCompare(b.p)); for(let file of files){ const content=await file.ent.async("string"); const doc=new DOMParser().parseFromString(content,"text/html"); txt+=(doc.body.textContent||"")+"\n\n";} libroAcumulado+=txt; $("text").value=libroAcumulado; $("status").style.display="block"; $("status").textContent="EPUB acumulado completo.";
- } else if(ext==="docx"){ const buf=await f.arrayBuffer(); const res=await mammoth.extractRawText({arrayBuffer:buf}); libroAcumulado+=res.value+"\n\n"; $("text").value=libroAcumulado; $("status").textContent="Word acumulado."; }
- else { const r=new FileReader(); r.onload=ev=>{ libroAcumulado+=ev.target.result+"\n\n"; $("text").value=libroAcumulado; $("status").textContent="TXT acumulado."; }; r.readAsText(f); }
-});
+$("fileInput").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;const ext=f.name.split(".").pop().toLowerCase();const st=$("status");st.style.display="block";st.textContent="Extrayendo...";$("chapterSelect").style.display="none";bookChapters=[];try{if(ext==="pdf"){await cargarPDFCompleto(f);}else{let fullText="";if(ext==="epub"){const zip=await JSZip.loadAsync(f);let txt="";const files=[];zip.forEach((p,ent)=>{if(p.match(/\.x?html?$/))files.push({p,ent})});files.sort((a,b)=>a.p.localeCompare(b.p));for(let file of files){const content=await file.ent.async("string");const doc=new DOMParser().parseFromString(content,"text/html");txt+=(doc.body.textContent||"")+"\n\n";}fullText=txt;}else if(ext==="docx"){const buf=await f.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});fullText=res.value;}else{fullText=await f.text();}libroAcumulado=fullText;$("text").value=fullText;dividirEnCapitulos(fullText);st.textContent=`¡Libro dividido en ${bookChapters.length} partes! Selecciona arriba.`;}}catch(err){st.textContent="Error al extraer.";}});
 $("btn20").addEventListener("click",()=>extraerSiguientes(20));
 $("btnAll").addEventListener("click",()=>extraerSiguientes(9999));
 $("transBtn").addEventListener("click",traducir);
@@ -276,6 +124,4 @@ $("exportBtn").addEventListener("click",exportReport);
 $("maquetarBtn").addEventListener("click",maquetarLibro);
 $("exportHtmlBtn").addEventListener("click",descargarHTMLMaquetado);
 $("exportPdfBtn").addEventListener("click",descargarPDFMaquetado);
-$("clearBtn").addEventListener("click",()=>{ if(confirm("¿Borrar todo lo acumulado?")){ libroAcumulado=""; pdfDoc=null; currentPage=0; totalPages=0; $("textEs").value=""; $("text").value=""; $("results").innerHTML=""; $("status").style.display="none"; $("pdfControls").style.display="none"; $("bookPreview").style.display="none"; $("acumuladoInfo").innerHTML=""; }});
-</script>
-</
+$("clearBtn").addEventListener("click",()=>{if(confirm("¿Borrar todo?")){libroAcumulado
