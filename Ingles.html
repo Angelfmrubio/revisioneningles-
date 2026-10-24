@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>SINTÉTICOS - Revisor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.55;background:#121212;color:#e0e0e0}
@@ -48,11 +49,15 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 <div class="row">
 <button class="secondary" id="dictEsBtn">🎤 Dictar ES</button>
 <button class="translate" id="transBtn">🔄 Traducir ES → EN</button>
-<button class="secondary" id="uploadBtn">📁 Subir Doc</button>
-<input type="file" id="fileInput" accept=".txt,.md,.html" style="display:none;">
 </div>
+
+<div class="row">
+<button class="secondary" id="uploadBtn" style="background:#6a1b9a; color:#fff; font-size:1.1rem; min-height:65px;">📁 SUBIR LIBRO (.EPUB, .TXT)</button>
+<input type="file" id="fileInput" accept=".txt,.md,.html,.epub" style="display:none;">
+</div>
+
 <label>🇺🇸 Inglés (para revisar)</label>
-<textarea id="text" placeholder="Aquí aparecerá la traducción al inglés..."></textarea>
+<textarea id="text" placeholder="Aquí aparecerá el texto del libro o la traducción..."></textarea>
 <div class="row">
 <button class="secondary" id="dictEnBtn">🎤 Dictar EN</button>
 <button class="primary" id="checkBtn">🔍 Revisar Capítulo EN</button>
@@ -79,12 +84,49 @@ function checkRepeats(t){const stop=new Set("that this with from have been they 
 function metricRow(vs){return `<div class="metric-row">${vs.map(v=>`<div class="metric"><div class="v">${v.v}</div><div class="l">${v.l}</div></div>`).join("")}</div>`}
 function box(title,count,html,okText){const status=count===0?'<span class="tag-ok">✓</span>':`<span class="tag-warn">${count}</span>`;const body=count===0?`<p class="empty">${okText}</p>`:html;return `<details><summary>${title} ${status}</summary><div class="body">${body}</div></details>`}
 let lastSpeech="";
-function review(){const text=$("text").value.trim();const res=$("results"),st=$("status");if(!text){st.style.display="block";st.textContent="Pegue texto en inglés.";return}const words=text.split(/\s+/).filter(w=>w).length;const sents=splitSent(text).length;const fre=flesch(text),fg=fkg(text);const terms=checkTerms(text);const cal=checkCalques(text);const long=checkLong(text);const rep=checkRepeats(text);let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;html+=terms.length===0?box("🧩 Términos",0,"","Términos consistentes."):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`,"");html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos."):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`,"");html+=long.length===0?box("📏 Largas",0,"","Todas <28."):box("📏 Largas",long.length,`<ul class="plain">${long.map(o=>`<li><strong>${o.n} pal:</strong> ${o.s.slice(0,200)}</li>`).join("")}</ul>`,"");html+=rep.length===0?box("🔂 Repeticiones",0,"","Sin repeticiones."):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n}</li>`).join("")}</ul>`,"");res.innerHTML=html;lastSpeech=`Métricas ${words} palabras ${sents} oraciones Flesch ${fre.toFixed(1)} Grado ${fg.toFixed(1)} ${terms.length?`Términos ${terms.length}`:"Términos ok"} ${cal.length?`Calcos ${cal.length}`:"Sin calcos"} ${long.length?`Largas ${long.length}`:"Sin largas"} ${rep.length?`Repeticiones ${rep.length}`:"Sin repeticiones"}`;st.style.display="block";st.textContent="Revisión completada."}
+function review(){const text=$("text").value.trim();const res=$("results"),st=$("status");if(!text){st.style.display="block";st.textContent="Pegue o suba texto en inglés.";return}const words=text.split(/\s+/).filter(w=>w).length;const sents=splitSent(text).length;const fre=flesch(text),fg=fkg(text);const terms=checkTerms(text);const cal=checkCalques(text);const long=checkLong(text);const rep=checkRepeats(text);let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;html+=terms.length===0?box("🧩 Términos",0,"","Términos consistentes."):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`,"");html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos."):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`,"");html+=long.length===0?box("📏 Largas",0,"","Todas <28."):box("📏 Largas",long.length,`<ul class="plain">${long.map(o=>`<li><strong>${o.n} pal:</strong> ${o.s.slice(0,200)}</li>`).join("")}</ul>`,"");html+=rep.length===0?box("🔂 Repeticiones",0,"","Sin repeticiones."):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n}</li>`).join("")}</ul>`,"");res.innerHTML=html;lastSpeech=`Métricas ${words} palabras ${sents} oraciones Flesch ${fre.toFixed(1)} Grado ${fg.toFixed(1)} ${terms.length?`Términos ${terms.length}`:"Términos ok"} ${cal.length?`Calcos ${cal.length}`:"Sin calcos"} ${long.length?`Largas ${long.length}`:"Sin largas"} ${rep.length?`Repeticiones ${rep.length}`:"Sin repeticiones"}`;st.style.display="block";st.textContent="Revisión completada."}
 function speak(){if(!lastSpeech){alert("Primero Revisar.");return}if(!("speechSynthesis"in window)){alert("No soporta voz.");return}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";u.rate=0.95;window.speechSynthesis.speak(u)}
 async function traducir(){const es=$("textEs").value.trim();const st=$("status");const enField=$("text");if(!es){st.style.display="block";st.textContent="Escriba español primero.";return}st.style.display="block";st.textContent="Traduciendo ES→EN...";try{const chunks=[];let tmp=es;while(tmp.length>0){chunks.push(tmp.slice(0,450));tmp=tmp.slice(450)}let result="";for(const ch of chunks){const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=es|en`;const r=await fetch(url);const j=await r.json();if(j.responseData&&j.responseData.translatedText)result+=j.responseData.translatedText+" ";else result+=ch+" "}enField.value=result.trim();st.textContent="Traducción lista. Pulse Revisar."}catch(e){st.textContent="Error traducción, verifique internet."}}
 function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("No soportado");return}const rec=new SR();rec.lang=lang;rec.interimResults=false;rec.continuous=false;rec.onresult=e=>{const t=e.results[0][0].transcript;$(target).value+=($(target).value?" ":"")+t;$("status").style.display="block";$("status").textContent="Dictado añadido."};rec.onerror=e=>{$("status").style.display="block";$("status").textContent="Error: "+e.error};rec.start()}}
 $("uploadBtn").addEventListener("click",()=>$("fileInput").click());
-$("fileInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{const txt=ev.target.result;if(/[áéíóúñ]/i.test(txt.slice(0,500))) $("textEs").value=txt; else $("text").value=txt; $("status").style.display="block";$("status").textContent="Cargado: "+f.name+" → Traducir."};r.readAsText(f)});
+$("fileInput").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const st = $("status");
+    st.style.display = "block";
+    st.textContent = "Cargando archivo...";
+    if (f.name.toLowerCase().endsWith(".epub")) {
+        try {
+            const zip = await JSZip.loadAsync(f);
+            let fullText = "";
+            const promises = [];
+            zip.forEach((relativePath, zipEntry) => {
+                if (!zipEntry.dir && (relativePath.endsWith(".html") || relativePath.endsWith(".xhtml") || relativePath.endsWith(".htm"))) {
+                    promises.push(zipEntry.async("string").then(content => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(content, "text/html");
+                        fullText += (doc.body.textContent || doc.body.innerText || "") + "\n\n";
+                    }));
+                }
+            });
+            await Promise.all(promises);
+            fullText = fullText.replace(/\n{3,}/g, '\n\n').trim();
+            $("text").value = fullText;
+            st.textContent = "¡Libro ePub extraído! Ahora puedes Revisar.";
+        } catch (error) {
+            st.textContent = "Error al abrir el ePub.";
+        }
+    } else {
+        const r = new FileReader();
+        r.onload = ev => {
+            const txt = ev.target.result;
+            if(/[áéíóúñ]/i.test(txt.slice(0,500))) $("textEs").value = txt;
+            else $("text").value = txt;
+            st.textContent = "Cargado: " + f.name;
+        };
+        r.readAsText(f);
+    }
+});
 $("transBtn").addEventListener("click",traducir);
 $("dictEsBtn").addEventListener("click",dict("es-ES","textEs"));
 $("dictEnBtn").addEventListener("click",dict("en-US","text"));
