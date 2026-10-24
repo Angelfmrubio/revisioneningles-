@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>SINTÉTICOS - Revisor</title>
+<title>SINTÉTICOS - Revisor Maquetado KDP</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:18px;line-height:1.55;background:#121212;color:#e0e0e0}
@@ -21,8 +23,14 @@ button.primary{background:#ffd700;color:#000}
 button.secondary{background:#333;color:#fff}
 button.listen{background:#1d7a3a;color:#fff}
 button.translate{background:#2a5bd7;color:#fff}
-button.export{background:#d97706;color:#fff} /* Color naranja para exportar */
+button.export{background:#d97706;color:#fff}
+button.book{background:#7c3aed;color:#fff;min-height:68px;font-size:1.15rem}
 .status{padding:14px;background:#1e3a5f;border-radius:14px;font-size:.95rem;margin:12px 0;text-align:center;display:none;color:#fff}
+.status.ok{background:#1d7a3a}
+.progress{height:12px;background:#333;border-radius:6px;margin:8px 0;overflow:hidden;display:none}
+.progress-bar{height:100%;background:#ffd700;width:0%;transition:width .3s}
+.book-preview{border:2px dashed #ffd700;border-radius:14px;padding:16px;margin:12px 0;background:#1a1a1a;display:none}
+.book-preview h2{color:#ffd700;margin:0 0 8px;font-size:1.1rem}
 details{background:#1e1e1e;border-radius:14px;margin:12px 0;overflow:hidden;border:1px solid #333}
 details summary{padding:16px;font-weight:700;font-size:1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#ffd700}
 details summary::after{content:"▸";transition:transform .2s}
@@ -37,35 +45,54 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 .tag-warn{color:#ff6b6b;font-weight:700}
 .tag-ok{color:#51cf66;font-weight:700}
 .empty{color:#888;font-style:italic}
+.chip{display:inline-block;background:#2a2a2a;border:1px solid #ffd700;color:#ffd700;border-radius:20px;padding:4px 10px;font-size:.8rem;margin:2px}
 </style>
 </head>
 <body>
 <header>
-<h1>📖 SINTÉTICOS - Revisor</h1>
-<p>Español → Inglés · Dicta · Revisa · Escucha</p>
+<h1>📖 SINTÉTICOS - Revisor KDP</h1>
+<p>Recibe PDF completo · Extrae por partes · Entrega libro para Amazon</p>
 </header>
 <main>
 <label>📝 Español (original)</label>
-<textarea id="textEs" placeholder="Pegue su capítulo de SINTÉTICOS en español aquí..."></textarea>
+<textarea id="textEs" placeholder="Pegue capítulo en español..."></textarea>
 <div class="row">
 <button class="secondary" id="dictEsBtn">🎤 Dictar ES</button>
 <button class="translate" id="transBtn">🔄 Traducir ES → EN</button>
 </div>
-
 <div class="row">
-<button class="secondary" id="uploadBtn" style="background:#6a1b9a; color:#fff; font-size:1.1rem; min-height:65px;">📁 SUBIR LIBRO (.EPUB, .TXT)</button>
-<input type="file" id="fileInput" accept=".txt,.md,.html,.epub" style="display:none;">
+<button class="secondary" id="uploadBtn" style="background:#6a1b9a;color:#fff;font-size:1.1rem;min-height:65px;">📁 SUBIR LIBRO COMPLETO (PDF, WORD, EPUB)</button>
+<input type="file" id="fileInput" accept=".txt,.md,.html,.epub,.pdf,.docx" style="display:none;">
 </div>
-
-<label>🇺🇸 Inglés (para revisar)</label>
-<textarea id="text" placeholder="Aquí aparecerá el texto del libro o la traducción..."></textarea>
+<div id="pdfControls" style="display:none;">
+<label>📄 Control de páginas del PDF</label>
+<div class="row">
+<button class="secondary" id="btn20">➡️ Siguientes 20 págs</button>
+<button class="secondary" id="btnAll">📚 Acumular TODO</button>
+</div>
+<div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+<div id="acumuladoInfo" style="font-size:.9rem;color:#ffd700;margin:6px 0;"></div>
+</div>
+<label>🇺🇸 Inglés (acumulado para maquetar)</label>
+<textarea id="text" placeholder="Aquí se va acumulando el libro completo en inglés..."></textarea>
 <div class="row">
 <button class="secondary" id="dictEnBtn">🎤 Dictar EN</button>
 <button class="primary" id="checkBtn">🔍 Revisar Capítulo EN</button>
 </div>
 <div class="row">
+<button class="book" id="maquetarBtn">📘 MAQUETAR LIBRO FINAL PARA AMAZON KDP</button>
+</div>
+<div id="bookPreview" class="book-preview">
+<h2>📘 Libro maquetado listo</h2>
+<div id="previewContent"></div>
+<div class="row">
+<button class="export" id="exportHtmlBtn">📥 Descargar HTML Maquetado (eBook Kindle)</button>
+<button class="export" id="exportPdfBtn" style="background:#1d7a3a">📥 Descargar PDF Maquetado 6x9 (Tapa blanda)</button>
+</div>
+</div>
+<div class="row">
 <button class="listen" id="listenBtn">🔊 Escuchar Diagnóstico</button>
-<button class="export" id="exportBtn">📥 Exportar Reporte</button>
+<button class="export" id="exportBtn">📥 Exportar Reporte TXT</button>
 </div>
 <div class="row">
 <button class="secondary" id="clearBtn" style="flex:1;">🧹 Limpiar Todo</button>
@@ -74,141 +101,181 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 <div id="results"></div>
 </main>
 <script>
-const TERMS={"entropy of being":["being's entropy","entropy of the being"],"chronopathy":["chronopatía","chronopaty","chronophaty"],"liquid connections":["liquid connection","connections liquid"],"zombie algorithms":["zombies algorithms","algorithm zombies"],"disruptive elite":["elite disruptiva","disruptive elites"],"negentropy":["negative entropy","negentropia"],"language of silence":["silence language","language of the silence"],"harmony of the imperfect":["harmony of imperfect","imperfect harmony"],"reactions taster":["catador de reacciones","reaction taster"],"hydration of the soul":["soul hydration","hydratation of the soul"],"wabi-sabi":["wabisabi"],"ikigai":["ikigay","ikigaii"],"half-lives":["half lives","halflives"]};
-const CALQUES={"it is inevitable to elude":"it is impossible to avoid","to assemble with origins":"to reconnect with origins","the core issue is":"the main issue is","in order to":"to","due to the fact that":"because","it is important to note that":"(delete)","at the end of the day":"(cliché)","each time more":"increasingly","the same that":"the same as","depends of":"depends on","consists in":"consists of","in base to":"based on","with base in":"based on","it is for that":"that is why","for the contrary":"on the contrary"};
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const $=id=>document.getElementById(id);
-const splitSent=t=>{try{return t.split(/(?<=[.!?])\s+/).filter(s=>s.trim())}catch(e){return t.split(/[.!?]\s+/).filter(s=>s.trim())}};
+let pdfDoc=null; let currentPage=0; let totalPages=0; let libroAcumulado="";
+const splitSent=t=>{return t.split(/[.!?]+\s+/).filter(s=>s.trim())};
+function esc(h){return h.replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 function syl(w){w=w.toLowerCase().replace(/[^a-z]/g,'');if(!w)return 0;if(w.length<=3)return 1;w=w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/,'').replace(/^y/,'');const m=w.match(/[aeiouy]{1,2}/g);return m?m.length:1}
 function flesch(t){const ss=splitSent(t).length||1;const ws=t.split(/\s+/).filter(w=>w);const n=ws.length||1;let sy=0;for(const w of ws)sy+=syl(w);return 206.835-1.015*(n/ss)-84.6*(sy/n)}
 function fkg(t){const ss=splitSent(t).length||1;const ws=t.split(/\s+/).filter(w=>w);const n=ws.length||1;let sy=0;for(const w of ws)sy+=syl(w);return 0.39*(n/ss)+11.8*(sy/n)-15.59}
+const TERMS={"entropy of being":["being's entropy"],"chronopathy":["chronopaty"],"liquid connections":["liquid connection"],"zombie algorithms":["zombies algorithms"],"disruptive elite":["elite disruptiva"],"negentropy":["negative entropy"],"language of silence":["silence language"],"harmony of the imperfect":["harmony of imperfect"],"reactions taster":["catador de reacciones"],"hydration of the soul":["soul hydration"]};
+const CALQUES={"it is inevitable to elude":"it is impossible to avoid","in order to":"to","due to the fact that":"because","at the end of the day":"(cliché)","each time more":"increasingly","depends of":"depends on","in base to":"based on"};
 function checkTerms(t){const low=t.toLowerCase(),out=[];for(const[c,w]of Object.entries(TERMS))for(const v of w)if(low.includes(v.toLowerCase()))out.push({c,w:v});return out}
 function checkCalques(t){const low=t.toLowerCase(),out=[];for(const[k,v]of Object.entries(CALQUES))if(low.includes(k))out.push({k,v});return out}
 function checkLong(t,max=28){return splitSent(t).map(s=>({n:s.split(/\s+/).length,s:s.trim()})).filter(o=>o.n>max).sort((a,b)=>b.n-a.n)}
 function checkRepeats(t){const stop=new Set("that this with from have been they their there which while where what when will would could should about after before between into over under more most some such only also than then them".split(" "));const ws=t.toLowerCase().match(/\b[a-z]{4,}\b/g)||[];const c={};for(const w of ws)if(!stop.has(w))c[w]=(c[w]||0)+1;return Object.entries(c).filter(([,n])=>n>=4).sort((a,b)=>b[1]-a[1]).slice(0,15)}
 function metricRow(vs){return `<div class="metric-row">${vs.map(v=>`<div class="metric"><div class="v">${v.v}</div><div class="l">${v.l}</div></div>`).join("")}</div>`}
 function box(title,count,html,okText){const status=count===0?'<span class="tag-ok">✓</span>':`<span class="tag-warn">${count}</span>`;const body=count===0?`<p class="empty">${okText}</p>`:html;return `<details><summary>${title} ${status}</summary><div class="body">${body}</div></details>`}
-
-let lastSpeech="";
-let exportText=""; // Variable para guardar el texto del reporte
-
+let lastSpeech=""; let exportText="";
 function review(){
-    const text=$("text").value.trim();
-    const res=$("results"),st=$("status");
-    if(!text){st.style.display="block";st.textContent="Pegue o suba texto en inglés.";return}
-    
-    const words=text.split(/\s+/).filter(w=>w).length;
-    const sents=splitSent(text).length;
-    const fre=flesch(text),fg=fkg(text);
-    const terms=checkTerms(text);
-    const cal=checkCalques(text);
-    const long=checkLong(text);
-    const rep=checkRepeats(text);
-    
-    let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;
-    html+=terms.length===0?box("🧩 Términos",0,"","Términos consistentes."):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`,"");
-    html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos."):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`,"");
-    html+=long.length===0?box("📏 Largas",0,"","Todas <28."):box("📏 Largas",long.length,`<ul class="plain">${long.map(o=>`<li><strong>${o.n} pal:</strong> ${o.s.slice(0,200)}</li>`).join("")}</ul>`,"");
-    html+=rep.length===0?box("🔂 Repeticiones",0,"","Sin repeticiones."):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n}</li>`).join("")}</ul>`,"");
-    res.innerHTML=html;
-    
-    lastSpeech=`Métricas ${words} palabras ${sents} oraciones Flesch ${fre.toFixed(1)} Grado ${fg.toFixed(1)} ${terms.length?`Términos ${terms.length}`:"Términos ok"} ${cal.length?`Calcos ${cal.length}`:"Sin calcos"} ${long.length?`Largas ${long.length}`:"Sin largas"} ${rep.length?`Repeticiones ${rep.length}`:"Sin repeticiones"}`;
-    
-    // CONSTRUIR EL TEXTO PARA EXPORTAR
-    exportText = "REPORTE DE REVISIÓN - SINTÉTICOS\n\n";
-    exportText += "--- MÉTRICAS ---\n";
-    exportText += `Palabras: ${words} | Oraciones: ${sents} | Palabras por oración: ${sents?(words/sents).toFixed(1):0}\n`;
-    exportText += `Flesch Reading Ease: ${fre.toFixed(1)} | Grado escolar: ${fg.toFixed(1)}\n\n`;
-    
-    exportText += "--- TÉRMINOS INCONSISTENTES ---\n";
-    if(terms.length===0) exportText += "Ninguno.\n";
-    else terms.forEach(t => { exportText += `- Usa '${t.c}' en lugar de '${t.w}'\n`; });
-    exportText += "\n";
-
-    exportText += "--- CALCOS SOSPECHOSOS ---\n";
-    if(cal.length===0) exportText += "Ninguno.\n";
-    else cal.forEach(c => { exportText += `- Cambiar '${c.k}' por '${c.v}'\n`; });
-    exportText += "\n";
-
-    exportText += "--- ORACIONES LARGAS (+28 palabras) ---\n";
-    if(long.length===0) exportText += "Ninguna.\n";
-    else long.forEach(o => { exportText += `- (${o.n} palabras) ${o.s}\n`; });
-    exportText += "\n";
-
-    exportText += "--- REPETICIONES ---\n";
-    if(rep.length===0) exportText += "Ninguna.\n";
-    else rep.forEach(([w,n]) => { exportText += `- ${w}: ${n} veces\n`; });
-
-    st.style.display="block";
-    st.textContent="Revisión completada. Puedes escuchar o exportar.";
+ const text=$("text").value.trim(); const res=$("results"),st=$("status");
+ if(!text){st.style.display="block";st.textContent="No hay texto en inglés.";return}
+ const words=text.split(/\s+/).filter(w=>w).length; const sents=splitSent(text).length; const fre=flesch(text),fg=fkg(text);
+ const terms=checkTerms(text); const cal=checkCalques(text); const long=checkLong(text); const rep=checkRepeats(text);
+ let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;
+ html+=terms.length===0?box("🧩 Términos",0,"","OK"):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${esc(t.c)}</strong> no <em>${esc(t.w)}</em></li>`).join("")}</ul>`,"");
+ html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos"):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${esc(c.k)}» → <strong>${esc(c.v)}</strong></li>`).join("")}</ul>`,"");
+ html+=long.length===0?box("📏 Largas",0,"","<28"):box("📏 Largas",long.length,`<ul class="plain">${long.slice(0,8).map(o=>`<li><strong>${o.n} pal:</strong> ${esc(o.s.slice(0,200))}</li>`).join("")}</ul>`,"");
+ html+=rep.length===0?box("🔂 Repeticiones",0,"","OK"):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${esc(w)}</strong>: ${n}</li>`).join("")}</ul>`,"");
+ res.innerHTML=html;
+ lastSpeech=`${words} palabras, Flesch ${fre.toFixed(1)}, Grado ${fg.toFixed(1)}`;
+ exportText=`REPORTE SINTÉTICOS\nPalabras:${words} Oraciones:${sents} Flesch:${fre.toFixed(1)}\n`;
+ st.style.display="block"; st.textContent="Revisión lista.";
 }
-
-function speak(){if(!lastSpeech){alert("Primero Revisar.");return}if(!("speechSynthesis"in window)){alert("No soporta voz.");return}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";u.rate=0.95;window.speechSynthesis.speak(u)}
-
-// FUNCIÓN PARA DESCARGAR EL TEXTO
-function exportReport() {
-    if(!exportText) { alert("Primero debes revisar un texto."); return; }
-    const blob = new Blob([exportText], {type: "text/plain;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Reporte_Sinteticos.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    $("status").textContent = "Reporte descargado como archivo de texto.";
+function speak(){if(!lastSpeech){alert("Primero Revisar");return} const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";speechSynthesis.speak(u)}
+function exportReport(){if(!exportText){alert("Revisar primero");return} const blob=new Blob([exportText],{type:"text/plain"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="Reporte_Sinteticos.txt"; a.click();}
+async function traducir(){
+ const es=$("textEs").value.trim(); const st=$("status"); const en=$("text");
+ if(!es){st.style.display="block";st.textContent="Escriba español";return}
+ st.style.display="block"; st.textContent="Traduciendo...";
+ try{
+  const paras=es.split(/\n+/); let out="";
+  for(let i=0;i<paras.length;i++){
+   let p=paras[i].trim(); if(!p) continue;
+   st.textContent=`Traduciendo párrafo ${i+1}/${paras.length}`;
+   let chunk=p.slice(0,450);
+   const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
+   const r=await fetch(url); const j=await r.json();
+   out+=(j.responseData?.translatedText||chunk)+"\n\n";
+   await new Promise(r=>setTimeout(r,400));
+  }
+  en.value=out; libroAcumulado=out;
+  st.textContent="Traducción lista.";
+ }catch(e){st.textContent="Error traducción";}
 }
-
-async function traducir(){const es=$("textEs").value.trim();const st=$("status");const enField=$("text");if(!es){st.style.display="block";st.textContent="Escriba español primero.";return}st.style.display="block";st.textContent="Traduciendo ES→EN...";try{const chunks=[];let tmp=es;while(tmp.length>0){chunks.push(tmp.slice(0,450));tmp=tmp.slice(450)}let result="";for(const ch of chunks){const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=es|en`;const r=await fetch(url);const j=await r.json();if(j.responseData&&j.responseData.translatedText)result+=j.responseData.translatedText+" ";else result+=ch+" "}enField.value=result.trim();st.textContent="Traducción lista. Pulse Revisar."}catch(e){st.textContent="Error traducción, verifique internet."}}
-function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("No soportado");return}const rec=new SR();rec.lang=lang;rec.interimResults=false;rec.continuous=false;rec.onresult=e=>{const t=e.results[0][0].transcript;$(target).value+=($(target).value?" ":"")+t;$("status").style.display="block";$("status").textContent="Dictado añadido."};rec.onerror=e=>{$("status").style.display="block";$("status").textContent="Error: "+e.error};rec.start()}}
-
+function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SR){alert("No soportado");return} const rec=new SR(); rec.lang=lang; rec.continuous=false; rec.onresult=e=>{const t=e.results[0][0].transcript; $(target).value+=($(target).value?" ":"")+t;}; rec.start();}}
+async function cargarPDFCompleto(file){
+ const st=$("status"); const prog=$("progress");
+ st.style.display="block"; prog.style.display="block";
+ try{
+  const buf=await file.arrayBuffer();
+  pdfDoc=await pdfjsLib.getDocument(buf).promise;
+  totalPages=pdfDoc.numPages; currentPage=0;
+  $("pdfControls").style.display="block";
+  st.textContent=`PDF cargado: ${file.name} - ${totalPages} páginas. Pulse 'Siguientes 20'`;
+  $("acumuladoInfo").innerHTML=`<span class="chip">0 / ${totalPages} páginas</span>`;
+  prog.style.display="none";
+ }catch(e){st.textContent="Error PDF: "+e.message;}
+}
+async function extraerSiguientes(n=20){
+ if(!pdfDoc){alert("Suba PDF primero");return}
+ const st=$("status"); const prog=$("progress"); const bar=$("progressBar");
+ prog.style.display="block";
+ let fin=Math.min(currentPage+n, totalPages);
+ let texto="";
+ for(let i=currentPage+1;i<=fin;i++){
+  st.textContent=`Extrayendo página ${i} de ${totalPages}...`;
+  bar.style.width=`${Math.round((i/totalPages)*100)}%`;
+  const page=await pdfDoc.getPage(i);
+  const tc=await page.getTextContent();
+  const pageText=tc.items.map(it=>it.str).join(" ");
+  texto+=pageText+"\n\n";
+ }
+ currentPage=fin;
+ libroAcumulado+=texto;
+ $("text").value=libroAcumulado;
+ $("acumuladoInfo").innerHTML=`<span class="chip">${currentPage} / ${totalPages} páginas</span> <span class="chip">${libroAcumulado.split(/\s+/).length} palabras</span>`;
+ st.textContent=`Acumuladas ${currentPage} páginas. ${totalPages-currentPage} restantes.`;
+ st.className="status ok"; st.style.display="block";
+ if(currentPage>=totalPages){ st.textContent=`¡Libro completo acumulado! ${totalPages} páginas. Ya puede Maquetar.`; prog.style.display="none"; }
+}
+function maquetarLibro(){
+ const texto=$("text").value.trim();
+ if(!texto||texto.split(/\s+/).length<50){alert("Necesita acumular más texto");return}
+ const st=$("status");
+ let capitulos=texto.split(/(?=\b(CAP[ÍI]TULO|CHAPTER|Capítulo)\b)/i);
+ if(capitulos.length===1){
+   const palabras=texto.split(/\s+/);
+   capitulos=[]; for(let i=0;i<palabras.length;i+=1800){ capitulos.push(palabras.slice(i,i+1800).join(" ")); }
+ }
+ let htmlMaquetado=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SINTÉTICOS</title>
+<style>
+@page{size: 6in 9in; margin-top:0.8in; margin-bottom:0.8in; margin-left:0.9in; margin-right:0.6in;}
+body{font-family:'Georgia', serif; font-size:11pt; line-height:1.5; color:#111; max-width:700px; margin:0 auto; padding:40px 20px; text-align:justify}
+.portada{text-align:center; padding:80px 20px 40px; page-break-after:always}
+.portada h1{font-size:3rem; letter-spacing:.2em; margin:0; font-weight:900}
+.portada h2{font-size:1.1rem; color:#555; margin-top:20px; font-weight:400}
+.portada .autor{margin-top:60px; font-size:1rem; letter-spacing:.3em}
+.capitulo{page-break-before:always; margin-top:40px}
+.capitulo h2{font-size:1.6rem; text-transform:uppercase; letter-spacing:.12em; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:25px; text-align:left}
+.capitulo p{margin:0 0 1em; text-indent:1.5em; text-align:justify; hyphens:auto}
+.capitulo p:first-of-type{text-indent:0}
+.capitulo p:first-of-type::first-letter{font-size:3.1rem; float:left; line-height:.8; margin:5px 8px 0 0; font-weight:700}
+.indice{page-break-after:always}
+.indice h2{font-size:1.4rem; border-bottom:1px solid #ccc; padding-bottom:8px; text-align:left}
+.indice ul{list-style:none; padding:0}
+.indice li{padding:7px 0; border-bottom:1px dotted #ccc; display:flex; justify-content:space-between}
+</style></head><body>
+<div class="portada">
+<h1>SINTÉTICOS</h1>
+<h2>ENTROPÍA, CONCIENCIA Y LA ARMONÍA DE LO IMPERFECTO</h2>
+<div class="autor">ÁNGEL F. M. RUBIO</div>
+<p style="margin-top:80px; font-size:.85rem; color:#888">Edición maquetada KDP 6x9 - Revisor SINTÉTICOS</p>
+</div>
+<div class="indice"><h2>ÍNDICE</h2><ul>`;
+ capitulos.forEach((c,i)=>{
+   let titulo=`Capítulo ${i+1}`;
+   const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);
+   if(m) titulo=m[0].slice(0,80);
+   htmlMaquetado+=`<li><span>${esc(titulo)}</span><span>${i+1}</span></li>`;
+ });
+ htmlMaquetado+=`</ul></div>`;
+ capitulos.forEach((c,i)=>{
+   let titulo=`Capítulo ${i+1}`;
+   let cuerpo=c;
+   const m=c.match(/^(CAP[ÍI]TULO|CHAPTER)[^\n]{0,80}/i);
+   if(m){ titulo=m[0]; cuerpo=c.slice(m[0].length); }
+   const paras=cuerpo.split(/\n\n+/).map(p=>`<p>${esc(p.trim())}</p>`).join("\n");
+   htmlMaquetado+=`<div class="capitulo"><h2>${esc(titulo)}</h2>${paras}</div>`;
+ });
+ htmlMaquetado+=`<div style="text-align:center; margin-top:80px; page-break-before:always; color:#888; font-size:.9rem">Fin - SINTÉTICOS</div></body></html>`;
+ window.libroMaquetadoHTML=htmlMaquetado;
+ $("bookPreview").style.display="block";
+ $("previewContent").innerHTML=`<p><span class="chip">${capitulos.length} capítulos</span> <span class="chip">${texto.split(/\s+/).length} palabras</span></p><p style="font-size:.85rem; color:#aaa">${esc(texto.slice(0,300))}...</p>`;
+ st.textContent=`¡Libro maquetado KDP! ${capitulos.length} capítulos, ${texto.split(/\s+/).length} palabras. Descargue.`;
+ st.className="status ok"; st.style.display="block";
+ window.scrollTo(0, document.body.scrollHeight);
+}
+function descargarHTMLMaquetado(){
+ if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}
+ const blob=new Blob([window.libroMaquetadoHTML],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="SINTETICOS-KDP-eBook.html"; a.click();
+}
+function descargarPDFMaquetado(){
+ if(!window.libroMaquetadoHTML){alert("Primero Maquetar");return}
+ const w=window.open("","_blank"); w.document.write(window.libroMaquetadoHTML); w.document.close(); setTimeout(()=>{w.print();},800);
+}
 $("uploadBtn").addEventListener("click",()=>$("fileInput").click());
-$("fileInput").addEventListener("change", async (e) => {
-    const f = e.target.files[0];
-    if(!f) return;
-    const st = $("status");
-    st.style.display = "block";
-    st.textContent = "Cargando archivo...";
-    if (f.name.toLowerCase().endsWith(".epub")) {
-        try {
-            const zip = await JSZip.loadAsync(f);
-            let fullText = "";
-            const promises = [];
-            zip.forEach((relativePath, zipEntry) => {
-                if (!zipEntry.dir && (relativePath.endsWith(".html") || relativePath.endsWith(".xhtml") || relativePath.endsWith(".htm"))) {
-                    promises.push(zipEntry.async("string").then(content => {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(content, "text/html");
-                        fullText += (doc.body.textContent || doc.body.innerText || "") + "\n\n";
-                    }));
-                }
-            });
-            await Promise.all(promises);
-            fullText = fullText.replace(/\n{3,}/g, '\n\n').trim();
-            $("text").value = fullText;
-            st.textContent = "¡Libro ePub extraído! Ahora puedes Revisar.";
-        } catch (error) {
-            st.textContent = "Error al abrir el ePub.";
-        }
-    } else {
-        const r = new FileReader();
-        r.onload = ev => {
-            const txt = ev.target.result;
-            if(/[áéíóúñ]/i.test(txt.slice(0,500))) $("textEs").value = txt;
-            else $("text").value = txt;
-            st.textContent = "Cargado: " + f.name;
-        };
-        r.readAsText(f);
-    }
+$("fileInput").addEventListener("change", async e=>{
+ const f=e.target.files[0]; if(!f) return;
+ const ext=f.name.split(".").pop().toLowerCase();
+ if(ext==="pdf"){ await cargarPDFCompleto(f); }
+ else if(ext==="epub"){ 
+   const zip=await JSZip.loadAsync(f); let txt=""; const files=[]; zip.forEach((p,ent)=>{if(p.match(/\.x?html?$/)) files.push({p,ent})}); files.sort((a,b)=>a.p.localeCompare(b.p)); for(let file of files){ const content=await file.ent.async("string"); const doc=new DOMParser().parseFromString(content,"text/html"); txt+=(doc.body.textContent||"")+"\n\n";} libroAcumulado+=txt; $("text").value=libroAcumulado; $("status").style.display="block"; $("status").textContent="EPUB acumulado completo.";
+ } else if(ext==="docx"){ const buf=await f.arrayBuffer(); const res=await mammoth.extractRawText({arrayBuffer:buf}); libroAcumulado+=res.value+"\n\n"; $("text").value=libroAcumulado; $("status").textContent="Word acumulado."; }
+ else { const r=new FileReader(); r.onload=ev=>{ libroAcumulado+=ev.target.result+"\n\n"; $("text").value=libroAcumulado; $("status").textContent="TXT acumulado."; }; r.readAsText(f); }
 });
-
+$("btn20").addEventListener("click",()=>extraerSiguientes(20));
+$("btnAll").addEventListener("click",()=>extraerSiguientes(9999));
 $("transBtn").addEventListener("click",traducir);
 $("dictEsBtn").addEventListener("click",dict("es-ES","textEs"));
 $("dictEnBtn").addEventListener("click",dict("en-US","text"));
 $("checkBtn").addEventListener("click",review);
 $("listenBtn").addEventListener("click",speak);
 $("exportBtn").addEventListener("click",exportReport);
-$("clearBtn").addEventListener("click",()=>{$("textEs").value="";$("text").value="";$("results").innerHTML="";$("status").style.display="none"; exportText="";});
+$("maquetarBtn").addEventListener("click",maquetarLibro);
+$("exportHtmlBtn").addEventListener("click",descargarHTMLMaquetado);
+$("exportPdfBtn").addEventListener("click",descargarPDFMaquetado);
+$("clearBtn").addEventListener("click",()=>{ if(confirm("¿Borrar todo lo acumulado?")){ libroAcumulado=""; pdfDoc=null; currentPage=0; totalPages=0; $("textEs").value=""; $("text").value=""; $("results").innerHTML=""; $("status").style.display="none"; $("pdfControls").style.display="none"; $("bookPreview").style.display="none"; $("acumuladoInfo").innerHTML=""; }});
 </script>
-</body>
-</html>
+</
