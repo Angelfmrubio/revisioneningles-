@@ -69,4 +69,19 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
 <div id="acumuladoInfo" style="font-size:.9rem;color:#ffd700;margin:6px 0;"></div>
 </div>
-<label>🇺🇸 Inglés (acumulado para
+<label>🇺🇸 Inglés (acumulado)</label>
+<textarea id="textEn" placeholder="Traducción generada..."></textarea>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileInput = document.getElementById('fileInput');
+    if(uploadBtn && fileInput) {
+        uploadBtn.addEventListener('click', function() {
+            fileInput.click();
+        });
+    }
+});
+</script>
+</body>
+</html>
