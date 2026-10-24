@@ -2,163 +2,89 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>SINTÉTICOS - Revisor KDP</title>
-<!-- Librerías para leer Word y ePub -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SINTÉTICOS - Lector Word</title>
+<!-- Solo la librería para leer Word -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
-*{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:18px;background:#121212;color:#e0e0e0;padding:16px}
-header{text-align:center;margin-bottom:20px}
-h1{color:#ffd700;font-size:1.4rem;margin:0 0 10px 0}
-
-/* EL BOTÓN NATIVO DE SUBIR ARCHIVO */
-input[type=file]{
+body { background: #121212; color: #fff; font-family: sans-serif; padding: 20px; text-align: center; }
+h1 { color: #ffd700; font-size: 1.5rem; }
+/* ESTE ES EL BOTÓN NATIVO REAL, EL QUE ABRE LOS ARCHIVOS EN EL TELÉFONO */
+input[type="file"] {
     display: block;
     width: 100%;
-    padding: 20px;
+    padding: 30px;
     background: #6a1b9a;
-    color: #fff;
-    border-radius: 12px;
-    font-size: 1.1rem;
+    color: white;
+    font-size: 1.2rem;
     font-weight: bold;
-    margin-bottom: 20px;
-    border: 2px dashed #ffd700;
-    text-align: center;
+    border: 3px dashed #ffd700;
+    border-radius: 12px;
+    margin: 20px 0;
     cursor: pointer;
 }
-
-textarea{width:100%;min-height:250px;padding:14px;font-size:16px;border-radius:12px;background:#1e1e1e;color:#fff;border:2px solid #333;margin-bottom:16px;line-height:1.5}
-button{width:100%;padding:18px;font-size:1.1rem;font-weight:bold;color:#000;background:#ffd700;border:none;border-radius:12px;cursor:pointer;margin-bottom:16px}
-button:active{transform:scale(0.98)}
-.status{text-align:center;color:#ffd700;margin-bottom:16px;font-weight:bold;font-size:1rem;}
-#results details{background:#1e1e1e;margin-bottom:12px;border-radius:12px;padding:16px;border:1px solid #333}
-#results summary{color:#ffd700;font-weight:bold;cursor:pointer;font-size:1.1rem}
-ul{padding-left:20px;margin:10px 0;font-size:15px;line-height:1.6}
+textarea {
+    width: 100%;
+    height: 300px;
+    padding: 10px;
+    background: #1e1e1e;
+    color: #fff;
+    border: 2px solid #333;
+    border-radius: 8px;
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+.status { font-weight: bold; color: #ffd700; margin: 10px 0; font-size: 1.1rem; }
 </style>
 </head>
 <body>
 
-<header>
-    <h1>📖 SINTÉTICOS - Revisor KDP</h1>
-    <p style="font-size:0.9rem; color:#888;">Selecciona tu archivo Word (.docx) o ePub</p>
-</header>
+<h1>📖 Lector de Word</h1>
 
-<!-- EL BOTÓN REAL Y NATIVO QUE ABRE EL EXPLORADOR DE ARCHIVOS -->
-<input type="file" id="fileInput" accept=".docx,.epub,.txt">
+<!-- Al tocar este botón, se abre el explorador de archivos del teléfono -->
+<input type="file" id="fileInput" accept=".docx" onchange="leerWord()">
 
-<div class="status" id="status">Esperando archivo...</div>
+<div class="status" id="status">Esperando tu archivo Word...</div>
 
-<textarea id="text" placeholder="El texto extraído de tu libro aparecerá aquí. Puedes editarlo si lo deseas."></textarea>
-
-<button onclick="revisar()">🔍 Revisar Texto Completo</button>
-
-<div id="results"></div>
+<textarea id="texto" placeholder="El texto de tu libro aparecerá aquí..."></textarea>
 
 <script>
-const $ = id => document.getElementById(id);
+function leerWord() {
+    const file = document.getElementById('fileInput').files[0];
+    const status = document.getElementById('status');
+    const texto = document.getElementById('texto');
 
-// AUTO-GUARDADO (Para que no pierdas nada si se apaga la pantalla)
-window.addEventListener('load', () => {
-    const saved = localStorage.getItem('sinteticos_texto');
-    if (saved) {
-        $("text").value = saved;
-        $("status").textContent = "✅ Progreso anterior recuperado.";
-    }
-});
-$("text").addEventListener('input', () => {
-    localStorage.setItem('sinteticos_texto', $("text").value);
-});
-
-// LÓGICA PARA LEER WORD Y EPUB
-$("fileInput").addEventListener("change", async (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    
-    $("status").textContent = "Extrayendo texto... por favor espera.";
-    const ext = f.name.split('.').pop().toLowerCase();
-
-    try {
-        if (ext === "docx") {
-            // Leer archivo Word
-            const arrayBuffer = await f.arrayBuffer();
-            const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
-            $("text").value = result.value;
-            $("status").textContent = "✅ Word cargado correctamente.";
-            localStorage.setItem('sinteticos_texto', result.value);
-            
-        } else if (ext === "epub") {
-            // Leer archivo ePub
-            const zip = await JSZip.loadAsync(f);
-            let fullText = "";
-            const promises = [];
-            zip.forEach((path, entry) => {
-                if (!entry.dir && (path.endsWith(".html") || path.endsWith(".xhtml") || path.endsWith(".htm"))) {
-                    promises.push(entry.async("string").then(content => {
-                        const doc = new DOMParser().parseFromString(content, "text/html");
-                        fullText += (doc.body.textContent || "") + "\n\n";
-                    }));
-                }
-            });
-            await Promise.all(promises);
-            $("text").value = fullText;
-            $("status").textContent = "✅ ePub cargado correctamente.";
-            localStorage.setItem('sinteticos_texto', fullText);
-            
-        } else {
-            // Leer archivo TXT
-            const reader = new FileReader();
-            reader.onload = ev => {
-                $("text").value = ev.target.result;
-                $("status").textContent = "✅ Texto cargado.";
-                localStorage.setItem('sinteticos_texto', ev.target.result);
-            };
-            reader.readAsText(f);
-        }
-    } catch (error) {
-        $("status").textContent = "❌ Error al abrir el archivo. Intenta de nuevo.";
-        console.error(error);
-    }
-});
-
-// LÓGICA DE REVISIÓN
-function revisar() {
-    const text = $("text").value.trim();
-    if (!text) {
-        $("status").textContent = "Primero sube un archivo.";
+    if (!file) {
+        status.innerText = "No seleccionaste ningún archivo.";
         return;
     }
-    
-    $("status").textContent = "Analizando...";
-    
-    // Diccionarios de revisión
-    const TERMS = {"entropy of being":["being's entropy"],"chronopathy":["chronopaty"],"liquid connections":["liquid connection"],"zombie algorithms":["zombies algorithms"],"disruptive elite":["elite disruptiva"],"negentropy":["negative entropy"],"language of silence":["silence language"],"harmony of the imperfect":["harmony of imperfect"],"reactions taster":["catador de reacciones"],"hydration of the soul":["soul hydration"]};
-    const CALQUES = {"it is inevitable to elude":"it is impossible to avoid","in order to":"to","due to the fact that":"because","at the end of the day":"(cliché)","each time more":"increasingly","depends of":"depends on","in base to":"based on"};
 
-    const words = text.split(/\s+/).filter(w => w).length;
-    let html = `<details open><summary>📊 Resumen</summary><ul><li><b>Palabras totales:</b> ${words}</li></ul></details>`;
-    
-    const low = text.toLowerCase();
-    
-    // Buscar Términos
-    let termHits = [];
-    for(const [correct, wrongs] of Object.entries(TERMS)) {
-        for(const w of wrongs) {
-            if(low.includes(w)) termHits.push(`Usa <b>${correct}</b> en lugar de ${w}`);
-        }
-    }
-    html += `<details><summary>🧩 Términos (${termHits.length})</summary><ul>${termHits.length ? termHits.map(t=>`<li>${t}</li>`).join("") : "<li>Todo correcto.</li>"}</ul></details>`;
+    status.innerText = "Leyendo archivo... por favor espera.";
 
-    // Buscar Calcos
-    let calqueHits = [];
-    for(const [k, v] of Object.entries(CALQUES)) {
-        if(low.includes(k)) calqueHits.push(`«${k}» → <b>${v}</b>`);
-    }
-    html += `<details><summary>🔁 Calcos (${calqueHits.length})</summary><ul>${calqueHits.length ? calqueHits.map(c=>`<li>${c}</li>`).join("") : "<li>Todo correcto.</li>"}</ul></details>`;
+    // El teléfono lee el archivo
+    const reader = new FileReader();
+    
+    reader.onload = function(e) {
+        const arrayBuffer = e.target.result;
+        
+        // Mammoth extrae el texto
+        mammoth.extractRawText({arrayBuffer: arrayBuffer})
+            .then(function(result) {
+                texto.value = result.value;
+                status.innerText = "✅ ¡Libro cargado con éxito!";
+            })
+            .catch(function(err) {
+                status.innerText = "❌ Error al leer el archivo. Asegúrate de que sea .docx";
+                console.error(err);
+            });
+    };
+    
+    reader.onerror = function() {
+        status.innerText = "❌ Error al abrir el archivo en el teléfono.";
+    };
 
-    $("results").innerHTML = html;
-    $("status").textContent = "✅ Revisión completada.";
+    // Iniciar lectura
+    reader.readAsArrayBuffer(file);
 }
 </script>
 
