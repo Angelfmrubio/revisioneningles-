@@ -21,6 +21,7 @@ button.primary{background:#ffd700;color:#000}
 button.secondary{background:#333;color:#fff}
 button.listen{background:#1d7a3a;color:#fff}
 button.translate{background:#2a5bd7;color:#fff}
+button.export{background:#d97706;color:#fff} /* Color naranja para exportar */
 .status{padding:14px;background:#1e3a5f;border-radius:14px;font-size:.95rem;margin:12px 0;text-align:center;display:none;color:#fff}
 details{background:#1e1e1e;border-radius:14px;margin:12px 0;overflow:hidden;border:1px solid #333}
 details summary{padding:16px;font-weight:700;font-size:1rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;color:#ffd700}
@@ -64,7 +65,10 @@ ul.plain li{padding:10px 0;border-bottom:1px solid #333}
 </div>
 <div class="row">
 <button class="listen" id="listenBtn">🔊 Escuchar Diagnóstico</button>
-<button class="secondary" id="clearBtn" style="flex:0.4;">🧹 Limpiar</button>
+<button class="export" id="exportBtn">📥 Exportar Reporte</button>
+</div>
+<div class="row">
+<button class="secondary" id="clearBtn" style="flex:1;">🧹 Limpiar Todo</button>
 </div>
 <div id="status" class="status"></div>
 <div id="results"></div>
@@ -83,11 +87,81 @@ function checkLong(t,max=28){return splitSent(t).map(s=>({n:s.split(/\s+/).lengt
 function checkRepeats(t){const stop=new Set("that this with from have been they their there which while where what when will would could should about after before between into over under more most some such only also than then them".split(" "));const ws=t.toLowerCase().match(/\b[a-z]{4,}\b/g)||[];const c={};for(const w of ws)if(!stop.has(w))c[w]=(c[w]||0)+1;return Object.entries(c).filter(([,n])=>n>=4).sort((a,b)=>b[1]-a[1]).slice(0,15)}
 function metricRow(vs){return `<div class="metric-row">${vs.map(v=>`<div class="metric"><div class="v">${v.v}</div><div class="l">${v.l}</div></div>`).join("")}</div>`}
 function box(title,count,html,okText){const status=count===0?'<span class="tag-ok">✓</span>':`<span class="tag-warn">${count}</span>`;const body=count===0?`<p class="empty">${okText}</p>`:html;return `<details><summary>${title} ${status}</summary><div class="body">${body}</div></details>`}
+
 let lastSpeech="";
-function review(){const text=$("text").value.trim();const res=$("results"),st=$("status");if(!text){st.style.display="block";st.textContent="Pegue o suba texto en inglés.";return}const words=text.split(/\s+/).filter(w=>w).length;const sents=splitSent(text).length;const fre=flesch(text),fg=fkg(text);const terms=checkTerms(text);const cal=checkCalques(text);const long=checkLong(text);const rep=checkRepeats(text);let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;html+=terms.length===0?box("🧩 Términos",0,"","Términos consistentes."):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`,"");html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos."):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`,"");html+=long.length===0?box("📏 Largas",0,"","Todas <28."):box("📏 Largas",long.length,`<ul class="plain">${long.map(o=>`<li><strong>${o.n} pal:</strong> ${o.s.slice(0,200)}</li>`).join("")}</ul>`,"");html+=rep.length===0?box("🔂 Repeticiones",0,"","Sin repeticiones."):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n}</li>`).join("")}</ul>`,"");res.innerHTML=html;lastSpeech=`Métricas ${words} palabras ${sents} oraciones Flesch ${fre.toFixed(1)} Grado ${fg.toFixed(1)} ${terms.length?`Términos ${terms.length}`:"Términos ok"} ${cal.length?`Calcos ${cal.length}`:"Sin calcos"} ${long.length?`Largas ${long.length}`:"Sin largas"} ${rep.length?`Repeticiones ${rep.length}`:"Sin repeticiones"}`;st.style.display="block";st.textContent="Revisión completada."}
+let exportText=""; // Variable para guardar el texto del reporte
+
+function review(){
+    const text=$("text").value.trim();
+    const res=$("results"),st=$("status");
+    if(!text){st.style.display="block";st.textContent="Pegue o suba texto en inglés.";return}
+    
+    const words=text.split(/\s+/).filter(w=>w).length;
+    const sents=splitSent(text).length;
+    const fre=flesch(text),fg=fkg(text);
+    const terms=checkTerms(text);
+    const cal=checkCalques(text);
+    const long=checkLong(text);
+    const rep=checkRepeats(text);
+    
+    let html=`<details open><summary>📊 Métricas</summary><div class="body">${metricRow([{v:words,l:"Palabras"},{v:sents,l:"Oraciones"},{v:sents?(words/sents).toFixed(1):0,l:"Pal/Ora"}])}${metricRow([{v:fre.toFixed(1),l:"Flesch"},{v:fg.toFixed(1),l:"Grado"}])}</div></details>`;
+    html+=terms.length===0?box("🧩 Términos",0,"","Términos consistentes."):box("🧩 Términos",terms.length,`<ul class="plain">${terms.map(t=>`<li>Usa <strong>${t.c}</strong> en lugar de <em>${t.w}</em></li>`).join("")}</ul>`,"");
+    html+=cal.length===0?box("🔁 Calcos",0,"","Sin calcos."):box("🔁 Calcos",cal.length,`<ul class="plain">${cal.map(c=>`<li>«${c.k}» → <strong>${c.v}</strong></li>`).join("")}</ul>`,"");
+    html+=long.length===0?box("📏 Largas",0,"","Todas <28."):box("📏 Largas",long.length,`<ul class="plain">${long.map(o=>`<li><strong>${o.n} pal:</strong> ${o.s.slice(0,200)}</li>`).join("")}</ul>`,"");
+    html+=rep.length===0?box("🔂 Repeticiones",0,"","Sin repeticiones."):box("🔂 Repeticiones",rep.length,`<ul class="plain">${rep.map(([w,n])=>`<li><strong>${w}</strong>: ${n}</li>`).join("")}</ul>`,"");
+    res.innerHTML=html;
+    
+    lastSpeech=`Métricas ${words} palabras ${sents} oraciones Flesch ${fre.toFixed(1)} Grado ${fg.toFixed(1)} ${terms.length?`Términos ${terms.length}`:"Términos ok"} ${cal.length?`Calcos ${cal.length}`:"Sin calcos"} ${long.length?`Largas ${long.length}`:"Sin largas"} ${rep.length?`Repeticiones ${rep.length}`:"Sin repeticiones"}`;
+    
+    // CONSTRUIR EL TEXTO PARA EXPORTAR
+    exportText = "REPORTE DE REVISIÓN - SINTÉTICOS\n\n";
+    exportText += "--- MÉTRICAS ---\n";
+    exportText += `Palabras: ${words} | Oraciones: ${sents} | Palabras por oración: ${sents?(words/sents).toFixed(1):0}\n`;
+    exportText += `Flesch Reading Ease: ${fre.toFixed(1)} | Grado escolar: ${fg.toFixed(1)}\n\n`;
+    
+    exportText += "--- TÉRMINOS INCONSISTENTES ---\n";
+    if(terms.length===0) exportText += "Ninguno.\n";
+    else terms.forEach(t => { exportText += `- Usa '${t.c}' en lugar de '${t.w}'\n`; });
+    exportText += "\n";
+
+    exportText += "--- CALCOS SOSPECHOSOS ---\n";
+    if(cal.length===0) exportText += "Ninguno.\n";
+    else cal.forEach(c => { exportText += `- Cambiar '${c.k}' por '${c.v}'\n`; });
+    exportText += "\n";
+
+    exportText += "--- ORACIONES LARGAS (+28 palabras) ---\n";
+    if(long.length===0) exportText += "Ninguna.\n";
+    else long.forEach(o => { exportText += `- (${o.n} palabras) ${o.s}\n`; });
+    exportText += "\n";
+
+    exportText += "--- REPETICIONES ---\n";
+    if(rep.length===0) exportText += "Ninguna.\n";
+    else rep.forEach(([w,n]) => { exportText += `- ${w}: ${n} veces\n`; });
+
+    st.style.display="block";
+    st.textContent="Revisión completada. Puedes escuchar o exportar.";
+}
+
 function speak(){if(!lastSpeech){alert("Primero Revisar.");return}if(!("speechSynthesis"in window)){alert("No soporta voz.");return}window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastSpeech);u.lang="es-ES";u.rate=0.95;window.speechSynthesis.speak(u)}
+
+// FUNCIÓN PARA DESCARGAR EL TEXTO
+function exportReport() {
+    if(!exportText) { alert("Primero debes revisar un texto."); return; }
+    const blob = new Blob([exportText], {type: "text/plain;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Reporte_Sinteticos.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    $("status").textContent = "Reporte descargado como archivo de texto.";
+}
+
 async function traducir(){const es=$("textEs").value.trim();const st=$("status");const enField=$("text");if(!es){st.style.display="block";st.textContent="Escriba español primero.";return}st.style.display="block";st.textContent="Traduciendo ES→EN...";try{const chunks=[];let tmp=es;while(tmp.length>0){chunks.push(tmp.slice(0,450));tmp=tmp.slice(450)}let result="";for(const ch of chunks){const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(ch)}&langpair=es|en`;const r=await fetch(url);const j=await r.json();if(j.responseData&&j.responseData.translatedText)result+=j.responseData.translatedText+" ";else result+=ch+" "}enField.value=result.trim();st.textContent="Traducción lista. Pulse Revisar."}catch(e){st.textContent="Error traducción, verifique internet."}}
 function dict(lang,target){return()=>{const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("No soportado");return}const rec=new SR();rec.lang=lang;rec.interimResults=false;rec.continuous=false;rec.onresult=e=>{const t=e.results[0][0].transcript;$(target).value+=($(target).value?" ":"")+t;$("status").style.display="block";$("status").textContent="Dictado añadido."};rec.onerror=e=>{$("status").style.display="block";$("status").textContent="Error: "+e.error};rec.start()}}
+
 $("uploadBtn").addEventListener("click",()=>$("fileInput").click());
 $("fileInput").addEventListener("change", async (e) => {
     const f = e.target.files[0];
@@ -127,12 +201,14 @@ $("fileInput").addEventListener("change", async (e) => {
         r.readAsText(f);
     }
 });
+
 $("transBtn").addEventListener("click",traducir);
 $("dictEsBtn").addEventListener("click",dict("es-ES","textEs"));
 $("dictEnBtn").addEventListener("click",dict("en-US","text"));
 $("checkBtn").addEventListener("click",review);
 $("listenBtn").addEventListener("click",speak);
-$("clearBtn").addEventListener("click",()=>{$("textEs").value="";$("text").value="";$("results").innerHTML="";$("status").style.display="none"});
+$("exportBtn").addEventListener("click",exportReport);
+$("clearBtn").addEventListener("click",()=>{$("textEs").value="";$("text").value="";$("results").innerHTML="";$("status").style.display="none"; exportText="";});
 </script>
 </body>
 </html>
