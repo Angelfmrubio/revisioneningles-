@@ -34,17 +34,15 @@ input[type="file"] {
     text-align: center;
     cursor: pointer;
 }
-#results details{background:#1e1e1e;margin-bottom:10px;border-radius:12px;padding:14px;border:1px solid #333}
-#results summary{color:#ffd700;font-weight:bold;cursor:pointer;font-size:1.05rem}
 </style>
 </head>
 <body>
 
-<!-- PORTADA UNIFICADA PARA VIDEO CORTO -->
+<!-- PORTADA UNIFICADA -->
 <img src="https://raw.githubusercontent.com/Angelfmrubio/revisioneningles-/main/portada_unificada.jpg" alt="La Farmacia del Futuro + Sinteticos" class="portada" onerror="this.style.display='none'">
 
 <h1>📖 SINTÉTICOS - Traductor</h1>
-<p class="subtitle">Sube, traduce y guarda tu avance a salvo - Duología: La Farmacia del Futuro</p>
+<p class="subtitle">Sube, traduce y guarda tu avance a salvo</p>
 
 <label>1. Sube tu archivo (Word, PDF o ePub)</label>
 <input type="file" id="fileInput" accept=".docx,.pdf,.epub">
@@ -141,30 +139,51 @@ $("fileInput").addEventListener("change", async (e) => {
     }
 });
 
+// TRADUCCIÓN CORREGIDA (Ya no corta los párrafos largos)
 async function traducir() {
     const es = $("textEs").value.trim();
     if (!es) { $("status").textContent = "Primero sube un archivo."; return; }
     $("status").textContent = "Traduciendo... no cierres la pantalla.";
     const enField = $("textEn");
     enField.value = ""; 
+    
     try {
         const paras = es.split(/\n+/);
         let out = "";
+        
         for (let i = 0; i < paras.length; i++) {
             let p = paras[i].trim();
             if (!p) continue;
-            $("status").textContent = `Traduciendo ${i+1} de ${paras.length}...`;
-            let chunk = p.slice(0, 400);
-            try {
-                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
-                const r = await fetch(url);
-                const j = await r.json();
-                out += (j.responseData?.translatedText || p) + "\n\n";
-            } catch {
-                out += p + " [sin traducir]\n\n";
+            
+            $("status").textContent = `Traduciendo párrafo ${i+1} de ${paras.length}...`;
+            
+            let remaining = p;
+            let translatedParagraph = "";
+            
+            // Bucle para cortar párrafos largos en trozos de 450 letras sin perder texto
+            while (remaining.length > 0) {
+                let chunk = remaining.slice(0, 450);
+                let lastSpace = chunk.lastIndexOf(' ');
+                if (lastSpace > 0 && remaining.length > 450) {
+                    chunk = remaining.slice(0, lastSpace);
+                    remaining = remaining.slice(lastSpace + 1);
+                } else {
+                    remaining = remaining.slice(450);
+                }
+                
+                try {
+                    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
+                    const r = await fetch(url);
+                    const j = await r.json();
+                    translatedParagraph += (j.responseData?.translatedText || chunk) + " ";
+                } catch {
+                    translatedParagraph += chunk + " ";
+                }
+                await new Promise(r => setTimeout(r, 200));
             }
-            await new Promise(r => setTimeout(r, 400));
+            out += translatedParagraph.trim() + "\n\n";
         }
+        
         enField.value = out;
         localStorage.setItem('sinteticos_en', out);
         $("status").textContent = "✅ Traducción lista. Guarda tu avance.";
