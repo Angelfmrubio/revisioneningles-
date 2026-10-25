@@ -9,8 +9,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:18px;background:#121212;color:#e0e0e0;padding:16px}
-h1{color:#ffd700;text-align:center;font-size:1.3rem;margin-bottom:10px}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:18px;background:#0a0a14;color:#e0e0e0;padding:16px}
+.portada{width:100%;max-width:400px;margin:0 auto 20px;display:block;border-radius:18px;border:2px solid #ffd700;box-shadow:0 0 25px rgba(0,255,255,0.4)}
+h1{color:#ffd700;text-align:center;font-size:1.4rem;margin-bottom:6px}
 p.subtitle{text-align:center;font-size:0.9rem;color:#888;margin-bottom:20px}
 label{display:block;margin:15px 0 5px;color:#ffd700;font-weight:bold}
 textarea{width:100%;min-height:180px;padding:14px;font-size:16px;border-radius:12px;background:#1e1e1e;color:#fff;border:2px solid #333;margin-bottom:12px;line-height:1.5}
@@ -18,8 +19,7 @@ button{width:100%;padding:18px;font-size:1.1rem;font-weight:bold;color:#000;back
 button:active{transform:scale(0.98)}
 button.translate{background:#2a5bd7;color:#fff}
 button.save{background:#0284c7;color:#fff; font-size:1.2rem; margin-top:10px;}
-.status{text-align:center;color:#ffd700;margin-bottom:15px;font-weight:bold;font-size:0.95rem;}
-/* EL BOTÓN NATIVO DE SUBIR ARCHIVO */
+.status{text-align:center;color:#00ffea;margin-bottom:15px;font-weight:bold;font-size:0.95rem;min-height:20px}
 input[type="file"] {
     display: block;
     width: 100%;
@@ -36,13 +36,15 @@ input[type="file"] {
 }
 #results details{background:#1e1e1e;margin-bottom:10px;border-radius:12px;padding:14px;border:1px solid #333}
 #results summary{color:#ffd700;font-weight:bold;cursor:pointer;font-size:1.05rem}
-ul{padding-left:20px;margin:10px 0;font-size:15px;line-height:1.5}
 </style>
 </head>
 <body>
 
+<!-- PORTADA UNIFICADA PARA VIDEO CORTO -->
+<img src="https://raw.githubusercontent.com/Angelfmrubio/revisioneningles-/main/portada_unificada.jpg" alt="La Farmacia del Futuro + Sinteticos" class="portada" onerror="this.style.display='none'">
+
 <h1>📖 SINTÉTICOS - Traductor</h1>
-<p class="subtitle">Sube, traduce y guarda tu avance a salvo</p>
+<p class="subtitle">Sube, traduce y guarda tu avance a salvo - Duología: La Farmacia del Futuro</p>
 
 <label>1. Sube tu archivo (Word, PDF o ePub)</label>
 <input type="file" id="fileInput" accept=".docx,.pdf,.epub">
@@ -55,56 +57,47 @@ ul{padding-left:20px;margin:10px 0;font-size:15px;line-height:1.5}
 <button class="translate" onclick="traducir()">🔄 Traducir al Inglés</button>
 
 <label>3. Texto en Inglés (Traducido)</label>
-<textarea id="text" placeholder="La traducción aparecerá aquí..."></textarea>
+<textarea id="textEn" placeholder="La traducción aparecerá aquí..."></textarea>
 
-<!-- EL BOTÓN SALVAVIDAS -->
 <button class="save" onclick="guardarAvance()">💾 GUARDAR AVANCE EN MI TELÉFONO</button>
 
 <div id="results"></div>
 
 <script>
-// Configurar el lector de PDF
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
 const $ = id => document.getElementById(id);
 
-// --- AUTO-GUARDADO LOCAL (CAPA 1 DE PROTECCIÓN) ---
+// AUTO-GUARDADO
 window.addEventListener('load', () => {
     if(localStorage.getItem('sinteticos_es')) $("textEs").value = localStorage.getItem('sinteticos_es');
-    if(localStorage.getItem('sinteticos_en')) $("text").value = localStorage.getItem('sinteticos_en');
-    if($("textEs").value || $("text").value) {
-        $("status").textContent = "✅ Progreso anterior recuperado de la memoria.";
-    }
+    if(localStorage.getItem('sinteticos_en')) $("textEn").value = localStorage.getItem('sinteticos_en');
+    if($("textEs").value || $("textEn").value) $("status").textContent = "✅ Progreso anterior recuperado.";
 });
 $("textEs").addEventListener('input', () => localStorage.setItem('sinteticos_es', $("textEs").value));
-$("text").addEventListener('input', () => localStorage.setItem('sinteticos_en', $("text").value));
+$("textEn").addEventListener('input', () => localStorage.setItem('sinteticos_en', $("textEn").value));
 
-// --- BOTÓN DE GUARDADO FÍSICO (CAPA 2 DE PROTECCIÓN) ---
 function guardarAvance() {
     const es = $("textEs").value;
-    const en = $("text").value;
+    const en = $("textEn").value;
     if(!es && !en) { alert("No hay texto para guardar todavía."); return; }
-    
-    const contenido = "=== TEXTO EN ESPAÑOL ===\n" + es + "\n\n=== TEXTO EN INGLÉS ===\n" + en;
+    const contenido = "=== TEXTO EN ESPAÑOL ===\n" + es + "\n\n=== TEXTO EN INGLÉS ===\n" + en + "\n\n=== SINTÉTICOS - La Entropía del Ser ===\nJosé Alirio Angel Corredor";
     const blob = new Blob([contenido], {type: "text/plain;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "Mi_Avance_Sinteticos.txt";
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
-    
-    $("status").textContent = "✅ Archivo descargado. Búscalo en tu carpeta de Descargas.";
+    $("status").textContent = "✅ Archivo descargado en Descargas.";
 }
 
-// --- LEER EL ARCHIVO (WORD, PDF, EPUB) ---
 $("fileInput").addEventListener("change", async (e) => {
     const f = e.target.files[0];
     if (!f) return;
-    
     $("status").textContent = "Extrayendo texto... espera.";
     const ext = f.name.split('.').pop().toLowerCase();
-
     try {
         if (ext === "docx") {
             const arrayBuffer = await f.arrayBuffer();
@@ -112,10 +105,9 @@ $("fileInput").addEventListener("change", async (e) => {
             $("textEs").value = result.value;
             localStorage.setItem('sinteticos_es', result.value);
             $("status").textContent = "✅ Word cargado correctamente.";
-        } 
-        else if (ext === "pdf") {
+        } else if (ext === "pdf") {
             const arrayBuffer = await f.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
             let fullText = "";
             for (let i = 1; i <= pdf.numPages; i++) {
                 $("status").textContent = `Leyendo página ${i} de ${pdf.numPages}...`;
@@ -126,8 +118,7 @@ $("fileInput").addEventListener("change", async (e) => {
             $("textEs").value = fullText;
             localStorage.setItem('sinteticos_es', fullText);
             $("status").textContent = "✅ PDF cargado correctamente.";
-        } 
-        else if (ext === "epub") {
+        } else if (ext === "epub") {
             const zip = await JSZip.loadAsync(f);
             let fullText = "";
             const promises = [];
@@ -145,19 +136,17 @@ $("fileInput").addEventListener("change", async (e) => {
             $("status").textContent = "✅ ePub cargado correctamente.";
         }
     } catch (error) {
-        $("status").textContent = "❌ Error al abrir el archivo.";
+        console.error(error);
+        $("status").textContent = "❌ Error al abrir el archivo: " + error.message;
     }
 });
 
-// --- TRADUCIR ---
 async function traducir() {
     const es = $("textEs").value.trim();
     if (!es) { $("status").textContent = "Primero sube un archivo."; return; }
-
     $("status").textContent = "Traduciendo... no cierres la pantalla.";
-    const enField = $("text");
+    const enField = $("textEn");
     enField.value = ""; 
-
     try {
         const paras = es.split(/\n+/);
         let out = "";
@@ -165,23 +154,24 @@ async function traducir() {
             let p = paras[i].trim();
             if (!p) continue;
             $("status").textContent = `Traduciendo ${i+1} de ${paras.length}...`;
-            
-            let chunk = p.slice(0, 450);
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
-            const r = await fetch(url);
-            const j = await r.json();
-            
-            out += (j.responseData?.translatedText || p) + "\n\n";
-            await new Promise(r => setTimeout(r, 300));
+            let chunk = p.slice(0, 400);
+            try {
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=es|en`;
+                const r = await fetch(url);
+                const j = await r.json();
+                out += (j.responseData?.translatedText || p) + "\n\n";
+            } catch {
+                out += p + " [sin traducir]\n\n";
+            }
+            await new Promise(r => setTimeout(r, 400));
         }
         enField.value = out;
-        localStorage.setItem('sinteticos_en', out); // Auto-guardado tras traducir
-        $("status").textContent = "✅ Traducción lista. Puedes guardar tu avance.";
+        localStorage.setItem('sinteticos_en', out);
+        $("status").textContent = "✅ Traducción lista. Guarda tu avance.";
     } catch (e) {
         $("status").textContent = "❌ Error de internet. Intenta de nuevo.";
     }
 }
 </script>
-
 </body>
 </html>
