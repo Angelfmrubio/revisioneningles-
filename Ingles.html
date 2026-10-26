@@ -133,15 +133,26 @@ async function traducir(){
     
     for(let i=0;i<bloques.length;i++){
         $("status").textContent = `Traduciendo ${i+1} de ${bloques.length}...`;
-        try{
-            const trad = await traducirGoogle(bloques[i]);
-            out += trad + " ";
-            enField.value = out;
-            localStorage.setItem('sinteticos_en', out); // Guarda cada bloque
-            // Auto-backup cada 20 bloques
-            if(i%20===0) localStorage.setItem('sinteticos_en_backup_'+i, m out);
-        }catch(e){
-            out += bloques[i] + " ";
+        let intentos = 0;
+        let traducido = false;
+        
+        while(intentos < 3 && !traducido){
+            try{
+                const trad = await traducirGoogle(bloques[i]);
+                out += trad + " ";
+                enField.value = out;
+                localStorage.setItem('sinteticos_en', out); 
+                // AQUÍ ESTABA EL ERROR DE LA "m out" - YA ESTÁ CORREGIDO
+                if(i%20===0) localStorage.setItem('sinteticos_en_backup_'+i, out);
+                traducido = true;
+            }catch(e){
+                intentos++;
+                await new Promise(r=>setTimeout(r, 1500)); // Esperar antes de reintentar
+            }
+        }
+        
+        if(!traducido){
+            out += "[BLOQUE NO TRADUCIDO] " + bloques[i] + " ";
             enField.value = out;
         }
         await new Promise(r=>setTimeout(r,250));
